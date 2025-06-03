@@ -1,16 +1,22 @@
 package com.example.workmanager
 
 import android.app.AlarmManager
+import android.app.AppOpsManager
+import android.app.KeyguardManager
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Binder
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.View
+import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
@@ -43,18 +49,19 @@ import androidx.work.WorkerParameters
 import java.util.concurrent.TimeUnit
 import androidx.core.net.toUri
 import com.example.workmanager.AlarmScheduler.requestExactAlarmPermission
+import java.lang.reflect.Method
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        /*if (!Settings.canDrawOverlays(this)) {
+        if (!Settings.canDrawOverlays(this)) {
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 "package:$packageName".toUri()
             )
             startActivity(intent)
-        }*/
+        }
         requestNotificationPermission()
         requestIgnoreBatteryOptimizations(this)
         setContent {
@@ -96,16 +103,40 @@ class MainActivity : ComponentActivity() {
 
     }
 
+    private fun isShowOnLockScreenPermissionEnable(context: Context): Boolean {
+        return try {
+            val manager = context.getSystemService(APP_OPS_SERVICE) as AppOpsManager
+            val method: Method = AppOpsManager::class.java.getDeclaredMethod(
+                "checkOpNoThrow",
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                String::class.java
+            )
+            val result =
+                method.invoke(manager, 10020, Binder.getCallingUid(), context.packageName) as Int
+            AppOpsManager.MODE_ALLOWED == result
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun requestIgnoreBatteryOptimizations(context: Context) {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val packageName = context.packageName
 
-        val intent = Intent()
-        intent.component = ComponentName(
-            "com.miui.securitycenter",
-            "com.miui.permcenter.autostart.AutoStartManagementActivity"
-        )
-        startActivity(intent)
+        if (isShowOnLockScreenPermissionEnable(context)) {
+            Toast.makeText(this, "Permission is already granted!!", Toast.LENGTH_SHORT).show()
+        } else {
+            if (Build.MANUFACTURER.equals("Xiaomi", true)) {
+                val intent = Intent("miui.intent.action.APP_PERM_EDITOR")
+                intent.setClassName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.permissions.PermissionsEditorActivity"
+                )
+                intent.putExtra("extra_pkgname", packageName)
+                startActivity(intent)
+            }
+        }
 
         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
             val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
@@ -179,8 +210,8 @@ object AlarmScheduler {
         )
         val alarmClockInfo = AlarmManager.AlarmClockInfo(alarmTime, pendingIntent)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmManager.setAlarmClock(
-            alarmClockInfo, pendingIntent
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP, alarmTime, pendingIntent
         )
         println("scheduleAlarm Alarm scheduled for $alarmTime")
     }

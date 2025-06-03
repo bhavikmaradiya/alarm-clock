@@ -5,9 +5,11 @@
     android:background="@android:color/transparent"
     android:padding="16dp">
 
-    <androidx.compose.ui.platform.ComposeView
+    <ImageView
         android:id="@+id/compose_overlay"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:background="@drawable/ic_launcher_background"
+        android:src="@drawable/ic_launcher_foreground"/>
 
 </FrameLayout>

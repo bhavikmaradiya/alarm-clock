@@ -3,6 +3,7 @@ package com.example.workmanager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -38,13 +39,17 @@ class OverlayForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(1234, createNotification())
-
-        if (Settings.canDrawOverlays(this)) {
+        /*if (Settings.canDrawOverlays(this)) {
             showOverlay()
         } else {
             stopSelf()
+        }*/
+        val fullScreenIntent = Intent(this, AlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-
+        startActivity(fullScreenIntent)
+        stopSelf()
         return START_STICKY
     }
 
@@ -54,24 +59,36 @@ class OverlayForegroundService : Service() {
             val chan = NotificationChannel(
                 channelId,
                 "Overlay Service",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_HIGH,
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(chan)
         }
 
+        val fullScreenIntent = Intent(this, AlarmActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("Pre-alarm running")
             .setContentText("Showing overlay popup")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(pendingIntent, true)
             .build()
     }
 
     private fun showOverlay() {
         val inflater = LayoutInflater.from(this)
         overlayView = inflater.inflate(R.layout.overlay_layout, null)
-
-        val params = WindowManager.LayoutParams(
+        val layoutParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
@@ -79,23 +96,27 @@ class OverlayForegroundService : Service() {
             else
                 WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
             PixelFormat.TRANSLUCENT
         )
-        params.gravity = Gravity.CENTER
 
-        val composeView = overlayView.findViewById<ComposeView>(R.id.compose_overlay)
-        composeView.setContent {
-            MaterialTheme {
-                OverlayContent(onClose = {
-                    removeOverlay()
-                    stopSelf()
-                })
-            }
-        }
+        layoutParams.gravity = Gravity.CENTER
 
-        windowManager.addView(overlayView, params)
+        /* val composeView = overlayView.findViewById<ComposeView>(R.id.compose_overlay)
+         composeView.setContent {
+             MaterialTheme {
+                 OverlayContent(onClose = {
+                     removeOverlay()
+                     stopSelf()
+                 })
+             }
+         }*/
+
+        windowManager.addView(overlayView, layoutParams)
     }
 
     private fun removeOverlay() {
@@ -106,7 +127,7 @@ class OverlayForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        removeOverlay()
+//        removeOverlay()
     }
 }
 
