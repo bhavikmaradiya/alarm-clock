@@ -4,7 +4,6 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -50,22 +49,8 @@ class AlarmActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             keyguardManager.requestDismissKeyguard(
                 this,
-                object : KeyguardManager.KeyguardDismissCallback() {
-                    override fun onDismissError() {
-                        super.onDismissError()
-                        println("onDismissError")
-                    }
-
-                    override fun onDismissCancelled() {
-                        super.onDismissCancelled()
-                        println("onDismissCancelled")
-                    }
-
-                    override fun onDismissSucceeded() {
-                        super.onDismissSucceeded()
-                        println("onDismissSucceeded")
-                    }
-                })
+                null
+            )
         }
         val keyguard = keyguardManager.newKeyguardLock("MyApp");
         keyguard.disableKeyguard();
