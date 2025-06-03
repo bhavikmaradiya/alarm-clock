@@ -1,5 +1,6 @@
 package com.example.workmanager
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.AppOpsManager
 import android.app.PendingIntent
@@ -52,14 +53,19 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 Scaffold {
                     Button(modifier = Modifier.padding(it), onClick = {
-                        if (isShowOnLockScreenPermissionEnable(context) && AlarmScheduler.canScheduleExactAlarms(
-                                context
-                            )
+                        val canScheduleExactAlarms = AlarmScheduler.canScheduleExactAlarms(context)
+                        val canDrawOverlays = Settings.canDrawOverlays(this)
+                        val isShowOnLockScreenPermissionEnable =
+                            isShowOnLockScreenPermissionEnable(context)
+                        if (canDrawOverlays && isShowOnLockScreenPermissionEnable && canScheduleExactAlarms
                         ) {
                             AlarmScheduler.scheduleAlarm(context)
-                        } else {
-                            requestExactAlarmPermission(context)
+                        } else if (!isShowOnLockScreenPermissionEnable) {
                             requestShowOnLockScreenPermission(context)
+                        } else if (!canScheduleExactAlarms) {
+                            requestExactAlarmPermission(context)
+                        } else {
+                            requestIgnoreBatteryOptimizations(context)
                         }
                         scheduled = true
                     }) {
@@ -88,6 +94,7 @@ class MainActivity : ComponentActivity() {
 
     }
 
+    @SuppressLint("DiscouragedPrivateApi")
     private fun isShowOnLockScreenPermissionEnable(context: Context): Boolean {
         return try {
             val manager = context.getSystemService(APP_OPS_SERVICE) as AppOpsManager
@@ -119,6 +126,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("BatteryLife")
     private fun requestIgnoreBatteryOptimizations(context: Context) {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val packageName = context.packageName

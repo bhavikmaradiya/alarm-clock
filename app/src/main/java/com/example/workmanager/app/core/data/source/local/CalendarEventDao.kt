@@ -1,0 +1,51 @@
+package com.example.workmanager.app.core.data.source.local
+
+import androidx.room.*
+import com.example.workmanager.app.core.domain.model.CalendarEvent
+import com.example.workmanager.app.core.domain.model.EventStatus
+
+@Dao
+interface CalendarEventDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertEvent(event: CalendarEvent)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertEvents(events: List<CalendarEvent>)
+
+    @Delete
+    suspend fun deleteEvent(event: CalendarEvent)
+
+    @Query("DELETE FROM calendar_events WHERE eventId = :eventId")
+    suspend fun deleteEventById(eventId: String)
+
+    @Query("SELECT * FROM calendar_events WHERE eventId = :eventId LIMIT 1")
+    suspend fun getEventById(eventId: String): CalendarEvent?
+
+    @Query("SELECT * FROM calendar_events ORDER BY startTimeMillis ASC")
+    suspend fun getAllEvents(): List<CalendarEvent>
+
+    @Query("SELECT * FROM calendar_events WHERE startTimeMillis > :currentTime ORDER BY startTimeMillis ASC")
+    suspend fun getUpcomingEvents(currentTime: Long = System.currentTimeMillis()): List<CalendarEvent>
+
+    @Query("SELECT * FROM calendar_events WHERE hasAlarmScheduled = 1 AND startTimeMillis > :currentTime ORDER BY startTimeMillis ASC")
+    suspend fun getScheduledEvents(currentTime: Long = System.currentTimeMillis()): List<CalendarEvent>
+
+    @Query("UPDATE calendar_events SET hasAlarmScheduled = :isScheduled WHERE eventId = :eventId")
+    suspend fun updateAlarmStatus(eventId: String, isScheduled: Boolean, alarmId: Int?)
+
+    @Query("UPDATE calendar_events SET isCancelled = 1, eventStatus = 'CANCELLED', hasAlarmScheduled = 0 WHERE eventId = :eventId")
+    suspend fun markEventAsCancelled(eventId: String)
+
+    @Query("UPDATE calendar_events SET eventStatus = :status WHERE eventId = :eventId")
+    suspend fun updateEventStatus(eventId: String, status: EventStatus)
+
+    @Query("SELECT * FROM calendar_events WHERE eventStatus = :status ORDER BY startTimeMillis ASC")
+    suspend fun getEventsByStatus(status: EventStatus): List<CalendarEvent>
+
+    @Query("DELETE FROM calendar_events WHERE endTimeMillis < :thresholdTime")
+    suspend fun clearPastEvents(thresholdTime: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM calendar_events WHERE isRecurring = 0 AND eventStatus = :status ORDER BY startTimeMillis ASC")
+    suspend fun getNonRecurringEventsByStatus(status: EventStatus): List<CalendarEvent>
+}
