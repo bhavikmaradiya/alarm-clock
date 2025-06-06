@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.workmanager" />
+                  <option name="mobileSdkAppId" value="1:66527400428:android:be227caed5fbe449e0b0c9" />
+                  <option name="projectId" value="eventreminder-c8fae" />
+                  <option name="projectNumber" value="66527400428" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

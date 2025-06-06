@@ -1,38 +1,31 @@
 package com.example.workmanager
 
-import android.annotation.SuppressLint
-import android.app.AlarmManager
-import android.app.AppOpsManager
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Binder
-import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
-import com.example.workmanager.AlarmScheduler.requestExactAlarmPermission
-import java.lang.reflect.Method
-import java.util.concurrent.TimeUnit
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.Composable
+import com.example.workmanager.navigation.Navigation
+import com.example.workmanager.ui.theme.WorkManagerTheme
 
 class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            EventApp()
+        }
+    }
+}
+
+@Composable
+private fun EventApp() {
+    WorkManagerTheme {
+        Navigation()
+    }
+}
+
+/*class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -44,7 +37,7 @@ class MainActivity : ComponentActivity() {
             startActivity(intent)
         }
         requestNotificationPermission()
-        isShowOnLockScreenPermissionEnable(this)
+        requestShowOnLockScreenPermission(this)
 //        requestIgnoreBatteryOptimizations(this)
         setContent {
             val context = LocalContext.current
@@ -55,19 +48,47 @@ class MainActivity : ComponentActivity() {
                     Button(modifier = Modifier.padding(it), onClick = {
                         val canScheduleExactAlarms = AlarmScheduler.canScheduleExactAlarms(context)
                         val canDrawOverlays = Settings.canDrawOverlays(this)
+                        val hasIgnoreBatteryOptimizations = hasIgnoreBatteryOptimizations(this)
                         val isShowOnLockScreenPermissionEnable =
                             isShowOnLockScreenPermissionEnable(context)
-                        if (canDrawOverlays && isShowOnLockScreenPermissionEnable && canScheduleExactAlarms
+                        if (canDrawOverlays && isShowOnLockScreenPermissionEnable && canScheduleExactAlarms && hasIgnoreBatteryOptimizations
                         ) {
                             AlarmScheduler.scheduleAlarm(context)
+                            scheduled = true
                         } else if (!isShowOnLockScreenPermissionEnable) {
+                            Toast.makeText(
+                                context,
+                                "Show on lock screen permission is not enable",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             requestShowOnLockScreenPermission(context)
                         } else if (!canScheduleExactAlarms) {
+                            Toast.makeText(
+                                context,
+                                "Exact alarm permission is not enable",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             requestExactAlarmPermission(context)
-                        } else {
+                        } else if (!hasIgnoreBatteryOptimizations) {
+                            Toast.makeText(
+                                context,
+                                "Ignore battery optimizations permission is not enable",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             requestIgnoreBatteryOptimizations(context)
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Draw overlays permission is not enable",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            val intent = Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                "package:$packageName".toUri()
+                            )
+                            startActivity(intent)
                         }
-                        scheduled = true
+
                     }) {
                         Text(if (scheduled) "Work Scheduled" else "Schedule Pre-alarm Work")
                     }
@@ -96,6 +117,9 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("DiscouragedPrivateApi")
     private fun isShowOnLockScreenPermissionEnable(context: Context): Boolean {
+        if (!Build.MANUFACTURER.equals("Xiaomi", true)) {
+            return true
+        }
         return try {
             val manager = context.getSystemService(APP_OPS_SERVICE) as AppOpsManager
             val method: Method = AppOpsManager::class.java.getDeclaredMethod(
@@ -138,13 +162,20 @@ class MainActivity : ComponentActivity() {
             context.startActivity(intent)
         }
     }
+
+    private fun hasIgnoreBatteryOptimizations(context: Context): Boolean {
+        val powerManager = context.getSystemService(POWER_SERVICE) as PowerManager
+        val packageName = context.packageName
+        return powerManager.isIgnoringBatteryOptimizations(packageName)
+    }
 }
 
 object AlarmScheduler {
     fun scheduleAlarm(context: Context) {
         val scheduledTimeMillis =
             System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(5) // 5 min later
-        val alarmTime = scheduledTimeMillis - 4 * 60 * 1000  // 4 minutes before
+//        val alarmTime = scheduledTimeMillis - 4 * 60 * 1000  // 4 minutes before
+        val alarmTime = 40000L  // 4 minutes before
 
         val intent = Intent(context, AlarmReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
@@ -175,4 +206,4 @@ object AlarmScheduler {
             context.startActivity(intent)
         }
     }
-}
+}*/
