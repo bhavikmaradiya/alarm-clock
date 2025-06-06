@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +59,7 @@ class AlarmActivity : TriggerXActivity() {
                 mediaPlayer = MediaPlayer().apply {
                     setDataSource(this@AlarmActivity, notificationSoundUri)
                     setOnPreparedListener { start() }
+                    isLooping = true
                     setOnCompletionListener { mp ->
                         mp.reset()
                         mp.release()
@@ -167,7 +169,13 @@ class AlarmActivity : TriggerXActivity() {
                         color = getStatusColor(calendarEvent.eventStatus), // Using a helper for status color
                         textAlign = TextAlign.Center
                     )
-
+                    Spacer(modifier = Modifier.height(50.dp))
+                    Button( onClick = {
+                        mediaPlayer?.stop()
+                        finish()
+                    }) {
+                        Text(text = "STOP")
+                    }
                 } else {
                     Text(
                         text = "Event Data Unavailable",

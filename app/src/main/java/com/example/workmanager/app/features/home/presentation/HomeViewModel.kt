@@ -83,6 +83,7 @@ class HomeViewModel(
                             triggerAtMillis = inFiveMinutes,
                             type = event.eventId,
                         )
+                        _uiEvent.emit(HomeUIEvent.ScheduledEvent)
                         println("Event scheduled for $inFiveMinutes for event: ${event.eventName}")
                     }
                 }
@@ -93,5 +94,6 @@ class HomeViewModel(
 
 sealed interface HomeUIEvent {
     data object None : HomeUIEvent
+    data object ScheduledEvent : HomeUIEvent
 
 }

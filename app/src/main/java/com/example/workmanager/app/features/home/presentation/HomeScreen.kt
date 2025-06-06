@@ -64,13 +64,25 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val uiEvent = viewModel.uiEvent
     val permissionState = rememberAppPermissionState()
+    val snackBarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
         if (permissionState.allRequiredGranted()) {
             viewModel.getCalendar(context)
         }
+        uiEvent.collect { event ->
+            when (event) {
+                is HomeUIEvent.ScheduledEvent -> {
+                    snackBarHostState.showSnackbar("Event scheduled successfully!")
+                }
+
+                HomeUIEvent.None              -> {}
+            }
+        }
     }
-    HomeComposable(homeSate = state)
+
+    HomeComposable(homeSate = state, snackBarHostState = snackBarHostState)
 }
 
 
