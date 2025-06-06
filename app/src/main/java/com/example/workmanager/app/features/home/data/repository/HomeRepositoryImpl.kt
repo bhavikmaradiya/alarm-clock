@@ -62,7 +62,7 @@ class HomeRepositoryImpl(
                 val nowMillis = System.currentTimeMillis()
                 val now = DateTime(nowMillis)
                 val in24HoursMillis =
-                    nowMillis + ((24 * 60 * 60 * 1000) * 5) // 24 hours in milliseconds
+                    nowMillis + ((24 * 60 * 60 * 1000) * 2) // 24 hours in milliseconds
                 val timeMax = DateTime(in24HoursMillis)
                 val events = calendarService.events().list("primary")
                     .setTimeMin(now)
@@ -98,7 +98,7 @@ class HomeRepositoryImpl(
                         return@mapNotNull null
                     }
 
-                    val reminderTimeMillis = startTimeMillis - (10 * 60 * 1000)
+                    val reminderTimeMillis = startTimeMillis - (1 * 60 * 1000)
                     if (reminderTimeMillis <= System.currentTimeMillis()) {
                         Log.w(
                             "HomeRepositoryImpl",
@@ -116,10 +116,14 @@ class HomeRepositoryImpl(
                                 id = googleAttendee.id, // Maps to googleAttendee.getId()
                                 email = googleAttendee.email, // Maps to googleAttendee.getEmail()
                                 displayName = googleAttendee.displayName, // Maps to googleAttendee.getDisplayName()
-                                organizer = googleAttendee.organizer ?: false, // Maps to googleAttendee.getOrganizer() (Boolean?)
-                                self = googleAttendee.self ?: false, // Maps to googleAttendee.getSelf() (Boolean?)
-                                resource = googleAttendee.resource ?: false, // Maps to googleAttendee.getResource() (Boolean?)
-                                optional = googleAttendee.optional ?: false, // Maps to googleAttendee.getOptional() (Boolean?)
+                                organizer = googleAttendee.organizer
+                                            ?: false, // Maps to googleAttendee.getOrganizer() (Boolean?)
+                                self = googleAttendee.self
+                                       ?: false, // Maps to googleAttendee.getSelf() (Boolean?)
+                                resource = googleAttendee.resource
+                                           ?: false, // Maps to googleAttendee.getResource() (Boolean?)
+                                optional = googleAttendee.optional
+                                           ?: false, // Maps to googleAttendee.getOptional() (Boolean?)
                                 responseStatus = AttendeeResponseStatus.fromString(googleAttendee.responseStatus), // Uses your enum's fromString method
                                 comment = googleAttendee.comment, // Maps to googleAttendee.getComment()
                                 additionalGuests = googleAttendee.additionalGuests // Maps to googleAttendee.getAdditionalGuests() (Int?)

@@ -70,7 +70,7 @@ class HomeViewModel(
                         )
                     }
                     calendarEvents.forEach { event ->
-                        val reminderTimeMillis = event.startTimeMillis - (10 * 60 * 1000)
+                        val reminderTimeMillis = event.startTimeMillis - (1 * 60 * 1000)
                         if (reminderTimeMillis > System.currentTimeMillis()) {
                             TriggerXAlarmScheduler().scheduleAlarm(
                                 context = context,
