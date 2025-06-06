@@ -1,13 +1,13 @@
 package com.example.workmanager.app.features.home.presentation
 
-import android.app.Activity
-import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,10 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -37,26 +41,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workmanager.app.core.domain.model.CalendarEvent
 import com.example.workmanager.app.core.domain.model.EventStatus
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.Scope
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
-import com.google.api.client.util.ExponentialBackOff
-import com.google.api.services.calendar.Calendar
-import com.google.api.services.calendar.CalendarScopes
 import com.meticha.triggerx.permission.rememberAppPermissionState
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
-import kotlin.text.format
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -68,16 +63,18 @@ fun HomeScreen(
     val permissionState = rememberAppPermissionState()
     val snackBarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
-        if (permissionState.allRequiredGranted()) {
-            viewModel.getCalendar(context)
-        }
         uiEvent.collect { event ->
             when (event) {
                 is HomeUIEvent.ScheduledEvent -> {
                     snackBarHostState.showSnackbar("Event scheduled successfully!")
                 }
 
-                HomeUIEvent.None              -> {}
+                HomeUIEvent.None -> {}
+                is HomeUIEvent.LocalCalendarFetchedEvent -> {
+                    if (permissionState.allRequiredGranted() && event.events.isEmpty()) {
+                        viewModel.getCalendar(context)
+                    }
+                }
             }
         }
     }
@@ -96,50 +93,63 @@ fun Body(
     val context = LocalContext.current
     val permissionState = rememberAppPermissionState()
 
-    Box(
+    Column(
         modifier
             .fillMaxSize()
             .background(
                 color = Color.LightGray.copy(alpha = 0.3f),
             ),
     ) {
-
-        when (homeSate.status) {
-            HomeStatus.INITIAL -> {
-                Button(modifier = Modifier.align(Alignment.Center), onClick = {
-                    if (permissionState.allRequiredGranted()) {
-                        viewModel.getCalendar(context)
-                    } else {
-                        permissionState.requestPermission()
-                    }
-                }) {
-                    Text(text = "Fetch and schedule event")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Load your calendar events:",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(end = 16.dp)
+            )
+            Button(onClick = {
+                if (permissionState.allRequiredGranted()) {
+                    viewModel.getCalendar(context)
+                } else {
+                    permissionState.requestPermission()
                 }
+            }) {
+                Text(text = "Sync")
             }
+        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (homeSate.status) {
+                HomeStatus.LOADING -> {
+                    Text(modifier = Modifier.align(Alignment.Center), text = "Loading")
+                }
 
-            HomeStatus.LOADING -> {
-                Text(modifier = Modifier.align(Alignment.Center), text = "Loading")
-            }
-
-            HomeStatus.LOADED  -> {
-                LazyColumn {
-                    items(homeSate.events) { event -> // eventsList is your List<CalendarEvent>
-                        EventItem(event = event)
+                HomeStatus.LOADED  -> {
+                    LazyColumn {
+                        items(homeSate.events) { event -> // eventsList is your List<CalendarEvent>
+                            EventItem(event = event)
+                        }
                     }
                 }
-            }
 
-            HomeStatus.ERROR   -> {
-                Text(
-                    modifier = Modifier.align(Alignment.Center),
-                    text = homeSate.error ?: "Something went wrong!"
-                )
-            }
+                HomeStatus.ERROR   -> {
+                    Text(
+                        modifier = Modifier.align(Alignment.Center),
+                        text = homeSate.error ?: "Something went wrong!"
+                    )
+                }
 
-            HomeStatus.EMPTY   -> {
-                Text(modifier = Modifier.align(Alignment.Center), text = "No data found")
-            }
+                HomeStatus.INITIAL,
+                HomeStatus.EMPTY,
+                                   -> {
+                    Text(modifier = Modifier.align(Alignment.Center), text = "No data found")
+                }
 
+            }
         }
     }
 }
@@ -174,10 +184,10 @@ fun HomePreview() {
 }
 
 // Simple Date Formatters (You can place these at the top of your file or in a utility object)
-private val timeFormatter = SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+private val timeFormatter = SimpleDateFormat("h:mm a", Locale.getDefault())
 private val dateFormatter = SimpleDateFormat(
     "EEE, MMM d, yyyy",
-    java.util.Locale.getDefault()
+    Locale.getDefault()
 )
 
 @Composable
@@ -233,23 +243,18 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
                     }
                 }
 
-                // Google Calendar API Status (optional, for debugging or info)
-                event.googleCalendarApiStatus?.let {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "API Status: $it",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                // Add Event Description (notes) here
+                event.notes?.let {
+                    if (it.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Description: $it",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
                 }
-
-                // Displaying the app's local EventStatus as text
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "App Status: ${event.eventStatus.name}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = getStatusColor(event.eventStatus).copy(alpha = 0.8f) // Use the status color
-                )
 
                 // Recurring event indicator (optional)
                 if (event.isRecurring) {
@@ -259,6 +264,71 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
+                }
+
+                event.attendees?.let { attendees ->
+                    val validAttendees =
+                        attendees.filter { !(it.resource ?: false) && it.email != null }
+                    if (validAttendees.isNotEmpty()) {
+                        Column {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Attendees",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.outline,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 25.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(
+                                    0.dp,
+                                    Alignment.CenterVertically
+                                ),
+                                horizontalArrangement = Arrangement.spacedBy(0.dp)
+                            ) {
+                                validAttendees.forEach { attendee ->
+                                    val displayName =
+                                        remember(attendee.displayName, attendee.email) {
+                                            attendee.displayName ?: (attendee.email?.split("@")
+                                                                         ?.first()?.split(".")
+                                                                         ?.first()
+                                                                         ?.replaceFirstChar(Char::titlecase)
+                                                                     ?: "Unknown")
+                                        }
+                                    Box(
+                                        modifier = Modifier.background(Color.Red)
+                                    ) {
+                                        AssistChip(
+                                            onClick = { /* No action for now */ },
+                                            label = { Text(displayName, maxLines = 1) },
+                                            modifier = Modifier
+                                                .padding(0.dp)
+                                                .height(IntrinsicSize.Min),
+                                            leadingIcon = {
+                                                if (attendee.organizer == true) {
+                                                    Icon(
+                                                        Icons.Filled.Star,
+                                                        contentDescription = "Organizer",
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            },
+                                            border = if (attendee.organizer == true) {
+                                                BorderStroke(
+                                                    1.dp,
+                                                    MaterialTheme.colorScheme.primary
+                                                )
+                                            } else {
+                                                BorderStroke(1.dp, Color.White)
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

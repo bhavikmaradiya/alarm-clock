@@ -4,43 +4,39 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.workmanager.app.core.domain.model.CalendarEvent
 import com.example.workmanager.app.features.home.domain.repository.HomeRepository
 import com.meticha.triggerx.TriggerXAlarmScheduler
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 class HomeViewModel(
     val repository: HomeRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeState())
 
-    /*val state =
-        repository
-            .getLocalCalendarEvents()
-            .map {
-                _state.update { state ->
-                    state.copy(
-                        events = it,
-                        status = if (it.isNotEmpty()) HomeStatus.LOADED else HomeStatus.EMPTY,
-                    )
-                }
-                _state.value
-            }.stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                HomeState(),
-            )*/
     val state = _state.asStateFlow()
     private val _uiEvent = MutableSharedFlow<HomeUIEvent>()
     val uiEvent = _uiEvent.asSharedFlow()
+
+
+    init {
+        viewModelScope.launch {
+            repository.getLocalCalendarEvents().collect { events ->
+                _uiEvent.emit(HomeUIEvent.LocalCalendarFetchedEvent(events))
+                _state.update {
+                    it.copy(
+                        events = events,
+                        status = if (events.isEmpty()) HomeStatus.EMPTY else HomeStatus.LOADED,
+                    )
+                }
+            }
+        }
+    }
 
 
     fun getCalendar(context: Context) {
@@ -73,19 +69,18 @@ class HomeViewModel(
                             events = calendarEvents
                         )
                     }
-                    val event = calendarEvents.firstOrNull()
-                    if (event != null) {
-                        val inFiveMinutes = Calendar.getInstance().apply {
-                            add(Calendar.MINUTE, 1)
-                        }.timeInMillis
-                        TriggerXAlarmScheduler().scheduleAlarm(
-                            context = context,
-                            triggerAtMillis = inFiveMinutes,
-                            type = event.eventId,
-                        )
-                        _uiEvent.emit(HomeUIEvent.ScheduledEvent)
-                        println("Event scheduled for $inFiveMinutes for event: ${event.eventName}")
+                    calendarEvents.forEach { event ->
+                        val reminderTimeMillis = event.startTimeMillis - (10 * 60 * 1000)
+                        if (reminderTimeMillis > System.currentTimeMillis()) {
+                            TriggerXAlarmScheduler().scheduleAlarm(
+                                context = context,
+                                triggerAtMillis = reminderTimeMillis,
+                                type = event.eventId,
+                            )
+                            println("Event scheduled for $reminderTimeMillis for event: ${event.eventName}")
+                        }
                     }
+                    _uiEvent.emit(HomeUIEvent.ScheduledEvent)
                 }
             })
         }
@@ -95,5 +90,6 @@ class HomeViewModel(
 sealed interface HomeUIEvent {
     data object None : HomeUIEvent
     data object ScheduledEvent : HomeUIEvent
+    data class LocalCalendarFetchedEvent(val events: List<CalendarEvent>) : HomeUIEvent
 
 }

@@ -31,11 +31,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
-import com.google.api.client.util.ExponentialBackOff
-import com.google.api.services.calendar.Calendar
 import com.google.api.services.calendar.CalendarScopes
 import org.koin.androidx.compose.koinViewModel
 
@@ -67,6 +62,8 @@ fun SignInScreen(
         when (state.status) {
             SignInStatus.SUCCESS -> {
                 val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestEmail()
+                    .requestProfile()
                     .requestScopes(Scope(CalendarScopes.CALENDAR)) // <<< THIS IS WHERE YOU ASK FOR THE SCOPE
                     .build()
                 val signInIntent = GoogleSignIn.getClient(activity, gso).signInIntent

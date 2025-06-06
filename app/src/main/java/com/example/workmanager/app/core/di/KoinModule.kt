@@ -5,12 +5,8 @@ import androidx.room.Room
 import com.example.workmanager.app.core.data.source.local.AppDatabase
 import com.example.workmanager.app.features.home.di.homeModule
 import com.example.workmanager.app.features.signin.di.authModule
-import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.auth
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
-import kotlin.jvm.java
 
 
 val appModule = module {
@@ -23,6 +19,5 @@ val appModule = module {
             ).build()
     }
     single { get<AppDatabase>().calendarEventDao() }
-    single<FirebaseUser?> { Firebase.auth.currentUser }
     includes(homeModule, authModule)
 }

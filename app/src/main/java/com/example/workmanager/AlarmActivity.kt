@@ -5,20 +5,28 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -54,7 +62,8 @@ class AlarmActivity : TriggerXActivity() {
 
     private fun playNotificationSound() {
         try {
-            val notificationSoundUri: Uri? = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            val notificationSoundUri: Uri? =
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             if (notificationSoundUri != null) {
                 mediaPlayer = MediaPlayer().apply {
                     setDataSource(this@AlarmActivity, notificationSoundUri)
@@ -106,7 +115,8 @@ class AlarmActivity : TriggerXActivity() {
                         color = Color.White, // Consider using MaterialTheme.colorScheme.surface
                         shape = RoundedCornerShape(32.dp)
                     )
-                    .padding(32.dp),
+                    .padding(32.dp)
+                    .verticalScroll(rememberScrollState()), // Added for scrollability
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -161,6 +171,76 @@ class AlarmActivity : TriggerXActivity() {
                         )
                     }
 
+                    calendarEvent.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Description: $notes",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF555555), // Consistent with location
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    calendarEvent.attendees?.let { attendees ->
+                        val validAttendees =
+                            attendees.filter { !(it.resource ?: false) && it.email != null }
+                        if (validAttendees.isNotEmpty()) {
+                            Column {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "Attendees",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 25.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(
+                                        5.dp,
+                                        Alignment.CenterVertically
+                                    ),
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    validAttendees.forEach { attendee ->
+                                        val displayName =
+                                            remember(attendee.displayName, attendee.email) {
+                                                attendee.displayName ?: (attendee.email?.split("@")
+                                                                             ?.first()?.split(".")
+                                                                             ?.first()
+                                                                             ?.replaceFirstChar(Char::titlecase)
+                                                                         ?: "Unknown")
+                                            }
+                                        AssistChip(
+                                            onClick = { /* No action for now */ },
+                                            label = { Text(displayName, maxLines = 1) },
+                                            modifier = Modifier.height(30.dp),
+                                            leadingIcon = {
+                                                if (attendee.organizer == true) {
+                                                    Icon(
+                                                        Icons.Filled.Star,
+                                                        contentDescription = "Organizer",
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            },
+                                            border = if (attendee.organizer == true) {
+                                                BorderStroke(
+                                                    1.dp,
+                                                    MaterialTheme.colorScheme.primary
+                                                )
+                                            } else {
+                                                BorderStroke(1.dp, Color.White)
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Status: ${calendarEvent.eventStatus.name}",
@@ -170,10 +250,7 @@ class AlarmActivity : TriggerXActivity() {
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(50.dp))
-                    Button( onClick = {
-                        mediaPlayer?.stop()
-                        finish()
-                    }) {
+                    Button(onClick = ::finish) {
                         Text(text = "STOP")
                     }
                 } else {
