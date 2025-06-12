@@ -17,11 +17,17 @@ interface CalendarEventDao {
     @Delete
     suspend fun deleteEvent(event: CalendarEvent)
 
+    @Query("DELETE FROM calendar_events")
+    suspend fun deleteAllEvents()
+
     @Query("DELETE FROM calendar_events WHERE eventId = :eventId")
     suspend fun deleteEventById(eventId: String)
 
     @Query("SELECT * FROM calendar_events WHERE eventId = :eventId LIMIT 1")
     suspend fun getEventById(eventId: String): CalendarEvent?
+
+    @Query("SELECT * FROM calendar_events WHERE id = :eventId LIMIT 1")
+    suspend fun getEventById(eventId: Int): CalendarEvent?
 
     @Query("SELECT * FROM calendar_events ORDER BY startTimeMillis ASC")
     fun getAllEvents(): Flow<List<CalendarEvent>>

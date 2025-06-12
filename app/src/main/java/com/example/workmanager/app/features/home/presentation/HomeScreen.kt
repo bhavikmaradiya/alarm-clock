@@ -21,9 +21,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ChipColors
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -283,10 +285,10 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(
-                                    0.dp,
+                                    5.dp,
                                     Alignment.CenterVertically
                                 ),
-                                horizontalArrangement = Arrangement.spacedBy(0.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 validAttendees.forEach { attendee ->
                                     val displayName =
@@ -298,11 +300,14 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
                                                                      ?: "Unknown")
                                         }
                                     Box(
-                                        modifier = Modifier.background(Color.Red)
+
                                     ) {
                                         AssistChip(
                                             onClick = { /* No action for now */ },
                                             label = { Text(displayName, maxLines = 1) },
+                                            colors = AssistChipDefaults.assistChipColors(
+                                                containerColor = Color.Transparent,
+                                            ),
                                             modifier = Modifier
                                                 .padding(0.dp)
                                                 .height(IntrinsicSize.Min),

@@ -58,7 +58,7 @@ class App : Application(), KoinComponent {
                 override suspend fun provideData(alarmId: Int, alarmType: String): Bundle {
                     // TODO: Implement actual data provision based on alarmId and alarmType
                     val calendarEventDao: CalendarEventDao by inject()
-                    val eventFromDb = calendarEventDao.getEventById(alarmType)
+                    val eventFromDb = calendarEventDao.getEventById(alarmId)
                     return if (eventFromDb != null) {
                         Log.d(TAG, "Providing data for event: ${eventFromDb.eventName}")
                         eventFromDb.toBundle() // Convert your CalendarEvent to Bundle

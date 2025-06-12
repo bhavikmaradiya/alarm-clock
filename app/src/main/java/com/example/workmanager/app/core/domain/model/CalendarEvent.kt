@@ -43,7 +43,8 @@ data class AttendeeData(
 
 @Entity(tableName = "calendar_events")
 data class CalendarEvent(
-    @PrimaryKey val eventId: String,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val eventId: String,
     val eventName: String,
     val startTimeMillis: Long,
     val endTimeMillis: Long,

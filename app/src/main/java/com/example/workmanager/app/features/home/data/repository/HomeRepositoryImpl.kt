@@ -57,6 +57,7 @@ class HomeRepositoryImpl(
     override suspend fun getCalendarEventsFromGoogle(): Either<String, List<CalendarEvent>> {
         return withContext(Dispatchers.IO) {
             try {
+                calendarEventDao.deleteAllEvents()
                 Log.d("HomeRepositoryImpl", "Fetching Google Calendar events with access token.")
 
                 val nowMillis = System.currentTimeMillis()

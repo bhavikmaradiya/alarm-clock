@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -22,6 +23,7 @@ class HomeViewModel(
     val state = _state.asStateFlow()
     private val _uiEvent = MutableSharedFlow<HomeUIEvent>()
     val uiEvent = _uiEvent.asSharedFlow()
+    val alarmScheduler = TriggerXAlarmScheduler()
 
 
     init {
@@ -46,43 +48,60 @@ class HomeViewModel(
                     status = HomeStatus.LOADING
                 )
             }
-            repository.getCalendarEventsFromGoogle().fold(ifLeft = { error ->
-                Log.e(
-                    "Calendar", error.toString()
-                )
-                _state.update {
-                    it.copy(
-                        status = HomeStatus.ERROR, error = error
+            repository.getCalendarEventsFromGoogle().fold(
+                ifLeft = { error ->
+                    Log.e(
+                        "Calendar", error.toString()
                     )
-                }
-            }, ifRight = { calendarEvents ->
-                if (calendarEvents.isEmpty()) {
                     _state.update {
                         it.copy(
-                            status = HomeStatus.EMPTY
+                            status = HomeStatus.ERROR, error = error
                         )
                     }
-                } else {
-                    _state.update {
-                        it.copy(
-                            status = HomeStatus.LOADED,
-                            events = calendarEvents
-                        )
-                    }
-                    calendarEvents.forEach { event ->
-                        val reminderTimeMillis = event.startTimeMillis - (1 * 60 * 1000)
-                        if (reminderTimeMillis > System.currentTimeMillis()) {
-                            TriggerXAlarmScheduler().scheduleAlarm(
-                                context = context,
-                                triggerAtMillis = reminderTimeMillis,
-                                type = event.eventId,
+                },
+                ifRight = { e ->
+                    val calendarEvents =
+                        repository.getLocalCalendarEvents().firstOrNull() ?: emptyList()
+                    if (calendarEvents.isEmpty()) {
+                        _state.update {
+                            it.copy(
+                                status = HomeStatus.EMPTY
                             )
-                            println("Event scheduled for $reminderTimeMillis for event: ${event.eventName}")
+                        }
+                    } else {
+                        _state.update {
+                            it.copy(
+                                status = HomeStatus.LOADED,
+                                events = calendarEvents
+                            )
+                        }
+                        val pairOfEvents = calendarEvents.mapNotNull { event ->
+                            val reminderTimeMillis = event.startTimeMillis - (1 * 60 * 1000)
+                            if (reminderTimeMillis > System.currentTimeMillis()) {
+                                Pair(event.id, reminderTimeMillis)
+                            } else {
+                                null
+                            }
+                        }
+                        /*val pairOfEvents = calendarEvents.firstOrNull()?.let { event ->
+                            val reminderTimeMillis = event.startTimeMillis - (1 * 60 * 1000)
+                            if (reminderTimeMillis > System.currentTimeMillis()) {
+                                Pair(event.id, reminderTimeMillis)
+                            } else {
+                                null
+                            }
+                        }*/
+                        if (pairOfEvents.isNotEmpty()) {
+                            alarmScheduler.scheduleAlarms(
+                                context = context,
+                                events = pairOfEvents
+                            )
+                            println("Event scheduled for ${pairOfEvents.size} events!!")
+                            _uiEvent.emit(HomeUIEvent.ScheduledEvent)
                         }
                     }
-                    _uiEvent.emit(HomeUIEvent.ScheduledEvent)
-                }
-            })
+                },
+            )
         }
     }
 }
