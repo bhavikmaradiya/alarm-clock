@@ -67,7 +67,7 @@ androidx-credentials = { group = "androidx.credentials", name = "credentials", v
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentialsPlayServicesAuth" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleidVersion" }
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
-triggerx = { module = "com.meticha:triggerx", version.ref = "triggerx" }
+triggerx = { module = "com.meticha:triggerx", version.ref = "triggerx"}
 
 
 [plugins]

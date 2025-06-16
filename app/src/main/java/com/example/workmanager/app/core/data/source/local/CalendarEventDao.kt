@@ -14,6 +14,34 @@ interface CalendarEventDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertEvents(events: List<CalendarEvent>)
 
+    @Transaction
+    suspend fun upsertListByEventId(events: List<CalendarEvent>) {
+        events.forEach { event ->
+            upsertByEventId(event) // Call the single item upsert logic
+        }
+    }
+
+    @Transaction
+    suspend fun upsertByEventId(event: CalendarEvent) {
+        val existingEvent = getEventById(event.eventId)
+        if (existingEvent != null) {
+            // Event with this eventId exists, update it.
+            // Preserve the original 'id' (primary key) but update all other fields from the new 'event'.
+            val eventToUpdate = event.copy(id = existingEvent.id)
+            updateEvent(eventToUpdate)
+        } else {
+            // Event with this eventId does not exist, insert it.
+            // The 'id' will be auto-generated if event.id is 0 (or default).
+            insertEvent(event)
+        }
+    }
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE) // Or .ABORT if you want to handle conflict manually
+    suspend fun insertEvent(event: CalendarEvent): Long
+
+    @Update // Updates based on the PrimaryKey (id) of the passed event object
+    suspend fun updateEvent(event: CalendarEvent)
+
     @Delete
     suspend fun deleteEvent(event: CalendarEvent)
 

@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import arrow.core.Either
 import arrow.core.raise.result
+import com.example.workmanager.app.core.data.source.local.AppSettingsDao
 import com.example.workmanager.app.core.data.source.local.CalendarEventDao
+import com.example.workmanager.app.core.domain.model.AppSettings
 import com.example.workmanager.app.core.domain.model.AttendeeData
 import com.example.workmanager.app.core.domain.model.AttendeeResponseStatus
 import com.example.workmanager.app.core.domain.model.CalendarEvent
@@ -13,12 +15,18 @@ import com.example.workmanager.app.features.home.domain.repository.HomeRepositor
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.DateTime
 import com.google.api.client.util.ExponentialBackOff
 import com.google.api.services.calendar.Calendar
 import com.google.api.services.calendar.CalendarScopes
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -28,9 +36,11 @@ import java.util.TimeZone // For all-day events
 
 class HomeRepositoryImpl(
     private val context: Context,
-    private val calendarEventDao: CalendarEventDao, // DAO for Room database
+    private val calendarEventDao: CalendarEventDao,
+    private val appSettingsDao: AppSettingsDao,
 ) : HomeRepository {
 
+    private val firebaseAuth = Firebase.auth
 
     private val calendarService: Calendar
 
@@ -42,8 +52,8 @@ class HomeRepositoryImpl(
             .setBackOff(ExponentialBackOff())
         mCredential.selectedAccount =
             GoogleSignIn.getLastSignedInAccount(context)?.account
-        val transport = com.google.api.client.http.javanet.NetHttpTransport()
-        val jsonFactory = com.google.api.client.json.jackson2.JacksonFactory.getDefaultInstance()
+        val transport = NetHttpTransport()
+        val jsonFactory = JacksonFactory.getDefaultInstance()
         calendarService = Calendar.Builder(transport, jsonFactory, mCredential)
             .setApplicationName("WorkManager")
             .build()
@@ -54,16 +64,26 @@ class HomeRepositoryImpl(
         timeZone = TimeZone.getTimeZone("UTC") // Google Calendar all-day events are date-only
     }
 
+    override fun getAppSettings(): Flow<AppSettings> {
+        val userId = firebaseAuth.currentUser?.uid ?: ""
+        return appSettingsDao.getSettings(
+            userId = userId
+        )
+    }
+
     override suspend fun getCalendarEventsFromGoogle(): Either<String, List<CalendarEvent>> {
         return withContext(Dispatchers.IO) {
             try {
+                val settings =
+                    getAppSettings().first().copy(lastSyncedTime = System.currentTimeMillis())
+                appSettingsDao.upsertSettings(settings)
                 calendarEventDao.deleteAllEvents()
                 Log.d("HomeRepositoryImpl", "Fetching Google Calendar events with access token.")
 
                 val nowMillis = System.currentTimeMillis()
                 val now = DateTime(nowMillis)
                 val in24HoursMillis =
-                    nowMillis + ((24 * 60 * 60 * 1000) * 2) // 24 hours in milliseconds
+                    nowMillis + ((24 * 60 * 60 * 1000) * 2) // 48 hours in milliseconds
                 val timeMax = DateTime(in24HoursMillis)
                 val events = calendarService.events().list("primary")
                     .setTimeMin(now)
@@ -99,7 +119,8 @@ class HomeRepositoryImpl(
                         return@mapNotNull null
                     }
 
-                    val reminderTimeMillis = startTimeMillis - (1 * 60 * 1000)
+                    val reminderTimeMillis =
+                        startTimeMillis - (settings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
                     if (reminderTimeMillis <= System.currentTimeMillis()) {
                         Log.w(
                             "HomeRepositoryImpl",
@@ -170,10 +191,8 @@ class HomeRepositoryImpl(
                     "Fetched ${calendarEvents.size} events. Saving to Room DB."
                 )
                 if (calendarEvents.isNotEmpty()) {
-                    calendarEventDao.upsertEvents(calendarEvents)
+                    calendarEventDao.upsertListByEventId(calendarEvents)
                 }
-
-
 
                 Either.Right(calendarEvents)
 

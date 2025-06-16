@@ -1,6 +1,7 @@
 package com.example.workmanager.app.features.signin.di
 
 
+import com.example.workmanager.app.core.data.source.local.AppSettingsDao
 import com.example.workmanager.app.features.signin.data.repository.SignInRepositoryImpl
 import com.example.workmanager.app.features.signin.domain.repository.SignInRepository
 import com.example.workmanager.app.features.signin.domain.usecase.GetCredentialsUseCase
@@ -12,7 +13,7 @@ import org.koin.dsl.module
 
 val authModule = module {
     factory<SignInRepository> {
-        SignInRepositoryImpl()
+        SignInRepositoryImpl(get<AppSettingsDao>())
     }
 
     factory<SignInUseCases> {

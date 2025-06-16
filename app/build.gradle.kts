@@ -1,4 +1,5 @@
 import com.android.build.api.dsl.Packaging
+import org.jetbrains.kotlin.gradle.utils.toSetOrEmpty
 
 plugins {
     alias(libs.plugins.android.application)
@@ -35,6 +36,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

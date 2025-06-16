@@ -4,15 +4,17 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.example.workmanager.app.core.domain.model.AppSettings
 import com.example.workmanager.app.core.domain.model.AttendeeData
 import com.example.workmanager.app.core.domain.model.CalendarEvent
 import com.example.workmanager.app.core.domain.model.EventStatus
 import kotlinx.serialization.json.Json
 
-@Database(entities = [CalendarEvent::class], version = 1, exportSchema = false)
+@Database(entities = [CalendarEvent::class, AppSettings::class], version = 1, exportSchema = false)
 @TypeConverters(EventStatusConverter::class, AttendeeListConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun calendarEventDao(): CalendarEventDao
+    abstract fun appSettingsDao(): AppSettingsDao
 }
 
 

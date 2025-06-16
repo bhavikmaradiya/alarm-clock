@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "WorkManager"
+rootProject.name = "Calarm"
 include(":app")
  

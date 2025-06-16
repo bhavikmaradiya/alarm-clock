@@ -14,5 +14,6 @@ enum class HomeStatus {
 data class HomeState(
     var status: HomeStatus = HomeStatus.INITIAL,
     val events: List<CalendarEvent> = emptyList(),
+    val lastSynced: Long? = null,
     val error: String? = null,
 )

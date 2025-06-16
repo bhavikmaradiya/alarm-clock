@@ -19,5 +19,6 @@ val appModule = module {
             ).build()
     }
     single { get<AppDatabase>().calendarEventDao() }
+    single { get<AppDatabase>().appSettingsDao() }
     includes(homeModule, authModule)
 }

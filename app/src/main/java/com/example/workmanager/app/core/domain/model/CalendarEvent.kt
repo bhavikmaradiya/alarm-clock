@@ -1,6 +1,7 @@
 package com.example.workmanager.app.core.domain.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 import kotlin.text.lowercase
@@ -41,7 +42,10 @@ data class AttendeeData(
     val additionalGuests: Int?,
 )
 
-@Entity(tableName = "calendar_events")
+@Entity(
+    tableName = "calendar_events",
+    indices = [Index(value = ["eventId"], unique = true)],
+)
 data class CalendarEvent(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val eventId: String,

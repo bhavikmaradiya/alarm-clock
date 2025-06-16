@@ -1,6 +1,7 @@
 package com.example.workmanager.app.features.home.domain.repository
 
 import arrow.core.Either
+import com.example.workmanager.app.core.domain.model.AppSettings
 import com.example.workmanager.app.core.domain.model.CalendarEvent
 import kotlinx.coroutines.flow.Flow
 
@@ -21,4 +22,6 @@ interface HomeRepository {
      * @return A Flow emitting a list of [CalendarEvent].
      */
     fun getLocalCalendarEvents(): Flow<List<CalendarEvent>>
+
+    fun getAppSettings(): Flow<AppSettings>
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.workmanager.app.core.domain.model.AppSettings
 import com.example.workmanager.app.core.domain.model.CalendarEvent
 import com.example.workmanager.app.features.home.domain.repository.HomeRepository
 import com.meticha.triggerx.TriggerXAlarmScheduler
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -25,19 +27,22 @@ class HomeViewModel(
     val uiEvent = _uiEvent.asSharedFlow()
     val alarmScheduler = TriggerXAlarmScheduler()
 
+    lateinit var appSettings: AppSettings
+
 
     init {
-        viewModelScope.launch {
+        /*viewModelScope.launch {
             repository.getLocalCalendarEvents().collect { events ->
                 _uiEvent.emit(HomeUIEvent.LocalCalendarFetchedEvent(events))
                 _state.update {
                     it.copy(
                         events = events,
                         status = if (events.isEmpty()) HomeStatus.EMPTY else HomeStatus.LOADED,
+                        lastSynced = appSettings.lastSyncedTime
                     )
                 }
             }
-        }
+        }*/
     }
 
 
@@ -55,24 +60,29 @@ class HomeViewModel(
                     )
                     _state.update {
                         it.copy(
-                            status = HomeStatus.ERROR, error = error
+                            status = HomeStatus.ERROR,
+                            error = error,
+                            lastSynced = appSettings.lastSyncedTime
                         )
                     }
                 },
                 ifRight = { e ->
+                    appSettings = repository.getAppSettings().first()
                     val calendarEvents =
                         repository.getLocalCalendarEvents().firstOrNull() ?: emptyList()
                     if (calendarEvents.isEmpty()) {
                         _state.update {
                             it.copy(
-                                status = HomeStatus.EMPTY
+                                status = HomeStatus.EMPTY,
+                                lastSynced = appSettings.lastSyncedTime
                             )
                         }
                     } else {
                         _state.update {
                             it.copy(
                                 status = HomeStatus.LOADED,
-                                events = calendarEvents
+                                events = calendarEvents,
+                                lastSynced = appSettings.lastSyncedTime
                             )
                         }
                         val pairOfEvents = calendarEvents.mapNotNull { event ->

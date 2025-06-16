@@ -11,6 +11,8 @@ import arrow.core.Either.Companion.catch
 import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
+import com.example.workmanager.app.core.data.source.local.AppSettingsDao
+import com.example.workmanager.app.core.domain.model.AppSettings
 import com.example.workmanager.app.features.signin.domain.repository.SignInRepository
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -20,6 +22,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.tasks.await
 
@@ -28,15 +31,15 @@ data class SignInError(
     val cause: Throwable? = null, // Optional: to hold the original exception
 )
 
-class SignInRepositoryImpl() : SignInRepository {
+class SignInRepositoryImpl(val appSettingsDao: AppSettingsDao) : SignInRepository {
     private val auth: FirebaseAuth = Firebase.auth
 
     override suspend fun getCredentials(context: Activity): Either<SignInError, FirebaseUser> {
         if (auth.currentUser != null) {
             auth.signOut()
         }
-        val account =GoogleSignIn.getLastSignedInAccount(context)?.account
-        if(account != null){
+        val account = GoogleSignIn.getLastSignedInAccount(context)?.account
+        if (account != null) {
         }
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
@@ -108,8 +111,17 @@ class SignInRepositoryImpl() : SignInRepository {
             catch { auth.signInWithCredential(authCredential).await() }
                 .mapLeft { e -> SignInError("Firebase authentication failed: ${e.message}", e) }
                 .flatMap { authResult ->
-                    authResult.user?.right()
-                    ?: SignInError("Firebase user not found after successful authentication.").left()
+                    authResult.user?.let { firebaseUser ->
+                        val userId = firebaseUser.uid
+                        // Check if settings already exist for this user
+                        val existingSettings = appSettingsDao.getSettingsOnce(userId)
+                        if (existingSettings == null) {
+                            // No settings found, create and save default AppSettings
+                            val defaultSettings = AppSettings(userId = userId)
+                            appSettingsDao.upsertSettings(defaultSettings)
+                        }
+                        firebaseUser.right() // Return the user
+                    } ?: SignInError("Firebase user not found after successful authentication.").left()
                 }
         }
     }

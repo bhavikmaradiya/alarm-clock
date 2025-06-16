@@ -1,5 +1,6 @@
 package com.example.workmanager.app.features.home.presentation
 
+import android.icu.util.Calendar
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -43,9 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.add
+import java.util.concurrent.TimeUnit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workmanager.app.core.domain.model.CalendarEvent
 import com.example.workmanager.app.core.domain.model.EventStatus
@@ -65,17 +69,20 @@ fun HomeScreen(
     val permissionState = rememberAppPermissionState()
     val snackBarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
+        if (permissionState.allRequiredGranted()) {
+            viewModel.getCalendar(context)
+        }
         uiEvent.collect { event ->
             when (event) {
-                is HomeUIEvent.ScheduledEvent -> {
+                is HomeUIEvent.ScheduledEvent            -> {
                     snackBarHostState.showSnackbar("Event scheduled successfully!")
                 }
 
-                HomeUIEvent.None -> {}
+                HomeUIEvent.None                         -> {}
                 is HomeUIEvent.LocalCalendarFetchedEvent -> {
-                    if (permissionState.allRequiredGranted() && event.events.isEmpty()) {
+                    /*if (permissionState.allRequiredGranted()) {
                         viewModel.getCalendar(context)
-                    }
+                    }*/
                 }
             }
         }
@@ -109,11 +116,19 @@ fun Body(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Load your calendar events:",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(end = 16.dp)
-            )
+            Column {
+                Text(
+                    text = "Load your calendar events:",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+                if (homeSate.lastSynced != null)
+                    Text(
+                        text = "Last synced: ${formatLastSyncedTime(homeSate.lastSynced)}",
+                        style = MaterialTheme.typography.labelSmall, // Or your preferred style
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // Or your preferred color
+                    )
+            }
             Button(onClick = {
                 if (permissionState.allRequiredGranted()) {
                     viewModel.getCalendar(context)
@@ -148,12 +163,59 @@ fun Body(
                 HomeStatus.INITIAL,
                 HomeStatus.EMPTY,
                                    -> {
-                    Text(modifier = Modifier.align(Alignment.Center), text = "No data found")
+                    Text(
+                        modifier = Modifier.align(Alignment.Center),
+                        text = "No data found!\nTry to sync again!",
+                        textAlign = TextAlign.Center
+                    )
                 }
 
             }
         }
     }
+}
+
+private fun formatLastSyncedTime(timestamp: Long?): String {
+    if (timestamp == null || timestamp <= 0) {
+        return "Never"
+    }
+
+    val currentTime = System.currentTimeMillis()
+    val diffMillis = currentTime - timestamp
+
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(diffMillis)
+    val hours = TimeUnit.MILLISECONDS.toHours(diffMillis)
+
+    val calendarNow = Calendar.getInstance()
+    val calendarTimestamp =
+        Calendar.getInstance().apply { timeInMillis = timestamp }
+
+    return when {
+        minutes < 1                                                            -> "Just now"
+        minutes < 60                                                           -> "$minutes minutes ago"
+        hours < 24 && calendarNow.get(Calendar.DAY_OF_YEAR) == calendarTimestamp.get(Calendar.DAY_OF_YEAR) &&
+        calendarNow.get(Calendar.YEAR) == calendarTimestamp.get(Calendar.YEAR) -> {
+            val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+            "Today at ${sdf.format(Date(timestamp))}"
+        }
+
+        isYesterday(calendarTimestamp, calendarNow)                            -> {
+            val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+            "Yesterday at ${sdf.format(Date(timestamp))}"
+        }
+
+        else                                                                   -> {
+            val sdf = SimpleDateFormat("MMM dd, yyyy h:mm a", Locale.getDefault())
+            sdf.format(Date(timestamp))
+        }
+    }
+}
+
+private fun isYesterday(targetCalendar: Calendar, currentCalendar: Calendar): Boolean {
+    val tempCalendar = currentCalendar.clone() as Calendar
+    tempCalendar.add(Calendar.DAY_OF_YEAR, -1)
+    return tempCalendar.get(Calendar.YEAR) == targetCalendar.get(Calendar.YEAR) &&
+           tempCalendar.get(Calendar.DAY_OF_YEAR) == targetCalendar.get(Calendar.DAY_OF_YEAR)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
