@@ -9,26 +9,29 @@ coreKtx = "1.16.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.9.0"
+lifecycleRuntimeKtx = "2.9.1"
 activityCompose = "1.10.1"
-composeBom = "2025.05.01"
+composeBom = "2025.06.01"
 navigationComposeAndroid = "2.9.0"
 playServicesAuth = "21.3.0"
-triggerx = "0.0.5"
-workRuntimeKtx = "2.10.1"
-koinAndroidxCompose = "4.0.4"
-roomRuntime = "2.7.1"
+triggerx = "0.0.7"
+workRuntimeKtx = "2.10.2"
+koinAndroidxCompose = "4.1.0"
+roomRuntime = "2.7.2"
 
-nav3Core = "1.0.0-alpha02"
+nav3Core = "1.0.0-alpha04"
 kotlinSerialization = "2.1.21"
-lifecycleViewmodelNavigation3Android = "1.0.0-alpha01"
+lifecycleViewmodelNavigation3Android = "1.0.0-alpha02"
 kotlinxSerializationJson = "1.8.1"
-googleid = "1.1.1"
 googleGmsGoogleServices = "4.4.2"
 firebaseAuth = "23.2.1"
 credentials = "1.5.0"
 credentialsPlayServicesAuth = "1.5.0"
 googleidVersion = "1.1.1"
+firebaseAnalytics = "22.4.0"
+kotlinxDatetime = "0.6.2"
+spotless = "7.0.4"
+ksp = "2.1.21-2.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -36,7 +39,7 @@ androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrowCore" }
 google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "googleApiClientAndroid" }
 google-api-services-calendar = { module = "com.google.apis:google-api-services-calendar", version.ref = "googleApiServicesCalendar" }
-google-http-client-jackson2 = { module = "com.google.http-client:google-http-client-jackson2", version.ref = "googleHttpClientJackson2" }
+google-http-client-gson = { module = "com.google.http-client:google-http-client-gson", version.ref = "googleHttpClientJackson2" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -67,13 +70,18 @@ androidx-credentials = { group = "androidx.credentials", name = "credentials", v
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentialsPlayServicesAuth" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleidVersion" }
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
-triggerx = { module = "com.meticha:triggerx", version.ref = "triggerx"}
+triggerx = { module = "com.meticha:triggerx", version.ref = "triggerx" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics", version.ref = "firebaseAnalytics" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
+koin-androidx-workmanager = { module = "io.insert-koin:koin-androidx-workmanager", version.ref = "koinAndroidxCompose" }
 
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-jetbrains-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlinSerialization"}
+jetbrains-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlinSerialization" }
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 

@@ -1,5 +1,4 @@
-import com.android.build.api.dsl.Packaging
-import org.jetbrains.kotlin.gradle.utils.toSetOrEmpty
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,20 +7,30 @@ plugins {
     id("com.google.devtools.ksp")
     alias(libs.plugins.jetbrains.kotlin.serialization)
     alias(libs.plugins.google.gms.google.services)
+    alias(libs.plugins.spotless)
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
 android {
-    namespace = "com.example.workmanager"
+    namespace = "com.bhavikm.calarm"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.workmanager"
+        applicationId = "com.bhavikm.calarm"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val googleSignInClientId = localProperties.getProperty("GOOGLE_SIGN_IN_SERVER_CLIENT_ID")
+                                   ?: "MISSING_IN_LOCAL_PROPERTIES"
+        buildConfigField("String", "GOOGLE_SIGN_IN_SERVER_CLIENT_ID", "\"$googleSignInClientId\"")
     }
     packaging {
         resources {
@@ -45,9 +54,28 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+        freeCompilerArgs += listOf("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+}
+
+spotless {
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**/*.kt")
+
+        ktlint("1.6.0")
+            .customRuleSets(
+                listOf(
+                    "io.nlopez.compose.rules:ktlint:0.4.16"
+                )
+            )
+            .editorConfigOverride(mapOf("disabled_rules" to "compose:modifier-missing-check"))
+        trimTrailingWhitespace()
+        endWithNewline()
     }
 }
 
@@ -64,8 +92,9 @@ dependencies {
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.firebase.auth)
     implementation(libs.androidx.credentials)
-    implementation(libs.androidx.credentials.play.services.auth) // For Credential Manager with Google Sign-In
-    implementation(libs.googleid) // For GetGoogleIdOption
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.firebase.analytics)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -80,18 +109,18 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
 
-    // Google Calendar API Client Libraries
-    implementation(libs.google.api.client.android) // Core Android client
-    implementation(libs.google.api.services.calendar) // Calendar API services
-//    implementation(libs.google.http.client.jackson2) // JSON HTTP client (Jackson)
-     implementation("com.google.http-client:google-http-client-gson:1.47.0")
+    implementation(libs.google.api.client.android)
+    implementation(libs.google.api.services.calendar)
+    implementation(libs.google.http.client.gson)
 
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3.android)
-     implementation(libs.play.services.auth) // This was a duplicate or potentially for older Google Sign-In, covered by credentials.play.services.auth for Credential Manager
-    implementation(libs.arrow.core)
+    implementation(libs.play.services.auth)
+//    implementation(libs.arrow.core)
     implementation(libs.triggerx)
+    implementation(libs.kotlinx.datetime)
+    implementation(libs.koin.androidx.workmanager)
 }

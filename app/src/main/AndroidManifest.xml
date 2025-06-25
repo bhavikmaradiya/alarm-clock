@@ -14,12 +14,12 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <permission
-        android:name="com.example.alarmapp.ALARM_PERMISSION"
-        android:protectionLevel="normal" />
+    <!--<permission
+        android:name="com.bhavikm.alarmapp.ALARM_PERMISSION"
+        android:protectionLevel="normal" />-->
 
     <application
-        android:name=".App"
+        android:name=".CalarmApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -29,9 +29,23 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WorkManager"
         tools:targetApi="31">
+
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <!-- If you are using androidx.startup to initialize other components -->
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
         <meta-data
             android:name="com.google.android.gms.auth.api.credentials.CredentialPickerConfig"
             android:value="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -56,27 +70,27 @@
             android:theme="@style/Theme.WorkManager"
             android:turnScreenOn="true" />
 
-        <service
+        <!--<service
             android:name=".AlarmService"
             android:exported="false"
-            android:foregroundServiceType="shortService" />
+            android:foregroundServiceType="shortService" />-->
 
-        <receiver
+        <!--<receiver
             android:name=".AlarmReceiver"
             android:exported="true"
-            android:permission="com.example.alarmapp.ALARM_PERMISSION" />
+            android:permission="com.example.alarmapp.ALARM_PERMISSION" />-->
 
-        <receiver
+        <!--<receiver
             android:name=".app.receiver.CalendarSyncAlarmReceiver"
             android:enabled="true"
-            android:exported="true"> <!-- Needs to be exported true for BOOT_COMPLETED on some devices/API levels -->
+            android:exported="true"> &lt;!&ndash; Needs to be exported true for BOOT_COMPLETED on some devices/API levels &ndash;&gt;
             <intent-filter>
                 <action android:name="com.example.workmanager.ACTION_SYNC_CALENDAR_ALARM" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <!-- This allows the BOOT_COMPLETED to be received even if the app is not launched by the user -->
+                &lt;!&ndash; This allows the BOOT_COMPLETED to be received even if the app is not launched by the user &ndash;&gt;
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
-        </receiver>
+        </receiver>-->
 
     </application>
 
