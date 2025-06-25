@@ -24,13 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.bhavikm.calarm.app.core.service.WorkScheduler
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 @Composable
 fun SignInScreen(
-    workScheduler: WorkScheduler = koinInject(),
     viewModel: SignInViewModel = koinViewModel(),
     onAuthSuccess: () -> Unit,
 ) {
@@ -60,7 +57,6 @@ fun SignInScreen(
     LaunchedEffect(state.status) {
         when (state.status) {
             SignInStatus.SUCCESS -> {
-                workScheduler.scheduleWorker()
                 onAuthSuccess.invoke()
             }
 

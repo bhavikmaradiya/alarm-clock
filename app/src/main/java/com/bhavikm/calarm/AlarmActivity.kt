@@ -122,13 +122,12 @@ class AlarmActivity : TriggerXActivity() {
                                 0,
                             )
                         }
-                        true // True if the method handled the error, false if it didn't.
+                        true
                     }
-                    prepareAsync() // Prepare asynchronously to avoid blocking the main thread
+                    prepareAsync()
                 }
             } else {
                 Log.w(TAG, "Default notification sound URI is null.")
-                // Restore original volume if sound URI is null
                 originalVolume?.let {
                     audioManager?.setStreamVolume(
                         AudioManager.STREAM_RING,
@@ -141,7 +140,6 @@ class AlarmActivity : TriggerXActivity() {
             Log.e(TAG, "Error setting up MediaPlayer for notification sound", e)
             mediaPlayer?.release()
             mediaPlayer = null
-            // Restore original volume
             originalVolume?.let { audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0) }
         } catch (e: IllegalStateException) {
             Log.e(TAG, "IllegalStateException for MediaPlayer", e)
@@ -272,8 +270,8 @@ class AlarmActivity : TriggerXActivity() {
                                                         ?.replaceFirstChar(
                                                             Char::titlecase,
                                                         )
-                                                        ?: "Unknown"
-                                                    )
+                                                    ?: "Unknown"
+                                                                        )
                                             }
                                         AssistChip(
                                             onClick = { /* No action for now */ },
@@ -360,7 +358,7 @@ class AlarmActivity : TriggerXActivity() {
 
 @Composable
 private fun getStatusColor(status: EventStatus): Color = when (status) {
-    EventStatus.PENDING -> Color(0xFFFFA726) // Orange500
+    EventStatus.PENDING   -> Color(0xFFFFA726) // Orange500
     EventStatus.SCHEDULED -> Color(0xFF66BB6A) // Green400
     EventStatus.COMPLETED -> Color(0xFF808080) // Grey
     EventStatus.CANCELLED -> Color(0xFFEF5350) // Red400
