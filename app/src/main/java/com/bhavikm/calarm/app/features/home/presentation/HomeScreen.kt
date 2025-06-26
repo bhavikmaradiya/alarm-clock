@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,9 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -47,12 +49,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.model.EventStatus
+import com.meticha.triggerx.permission.PermissionState
 import com.meticha.triggerx.permission.rememberAppPermissionState
 import kotlinx.datetime.Clock
 import org.koin.androidx.compose.koinViewModel
@@ -86,32 +88,36 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
         }
     }
 
-    HomeComposable(homeSate = state, snackBarHostState = snackBarHostState)
+    HomeComposable(
+        homeSate = state,
+        snackBarHostState = snackBarHostState,
+        permissionState = permissionState,
+        onSyncClick = {
+            viewModel.getCalendar(context)
+        },
+    )
 }
 
 @Composable
 fun Body(
     homeSate: HomeState,
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = koinViewModel(),
 ) {
-    val context = LocalContext.current
-    val permissionState = rememberAppPermissionState()
+    LocalContext.current
+    rememberAppPermissionState()
 
     Column(
         modifier
             .fillMaxSize()
-            .background(
-                color = Color.LightGray.copy(alpha = 0.3f),
-            ),
     ) {
-        Row(
+        /*Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
-        ) {
+        )
+        {
             Column {
                 Text(
                     text = "Load your calendar events:",
@@ -126,16 +132,18 @@ fun Body(
                     )
                 }
             }
-            Button(onClick = {
-                if (permissionState.allRequiredGranted()) {
-                    viewModel.getCalendar(context)
-                } else {
-                    permissionState.requestPermission()
-                }
-            }) {
+            Button(
+                onClick = {
+                    if (permissionState.allRequiredGranted()) {
+                        viewModel.getCalendar(context)
+                    } else {
+                        permissionState.requestPermission()
+                    }
+                },
+            ) {
                 Text(text = "Sync")
             }
-        }
+        }*/
         Box(modifier = Modifier.fillMaxSize()) {
             when (homeSate.status) {
                 HomeStatus.LOADING -> {
@@ -146,7 +154,13 @@ fun Body(
                     LazyColumn {
                         items(homeSate.events) { event ->
                             // eventsList is your List<CalendarEvent>
-                            EventItem(event = event)
+                            EventItem(
+                                event = event,
+                                modifier = Modifier.padding(
+                                    vertical = 12.dp,
+                                    horizontal = 20.dp
+                                )
+                            )
                         }
                     }
                 }
@@ -215,7 +229,10 @@ private fun formatLastSyncedTime(timestamp: Long?): String {
     }
 }
 
-private fun isYesterday(targetCalendar: Calendar, currentCalendar: Calendar): Boolean {
+private fun isYesterday(
+    targetCalendar: Calendar,
+    currentCalendar: Calendar,
+): Boolean {
     val tempCalendar = currentCalendar.clone() as Calendar
     tempCalendar.add(Calendar.DAY_OF_YEAR, -1)
     return tempCalendar.get(Calendar.YEAR) == targetCalendar.get(Calendar.YEAR) &&
@@ -224,10 +241,13 @@ private fun isYesterday(targetCalendar: Calendar, currentCalendar: Calendar): Bo
            ) == targetCalendar.get(Calendar.DAY_OF_YEAR)
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun HomeComposable(
     homeSate: HomeState = HomeState(),
+    permissionState: PermissionState,
     snackBarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onSyncClick: () -> Unit = {},
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -235,6 +255,26 @@ private fun HomeComposable(
         topBar = {
             TopAppBar(
                 title = { Text("Events") },
+
+                actions = {
+                    FilledTonalIconButton(
+                        content = {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "Sync",
+                            )
+                        },
+                        onClick = {
+                            if (permissionState.allRequiredGranted()) {
+                                onSyncClick.invoke()
+                            } else {
+                                permissionState.requestPermission()
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+                }
             )
         },
     ) { innerPadding ->
@@ -243,12 +283,6 @@ private fun HomeComposable(
             homeSate = homeSate,
         )
     }
-}
-
-@Preview
-@Composable
-private fun HomePreview() {
-    HomeComposable()
 }
 
 // Simple Date Formatters (You can place these at the top of your file or in a utility object)
@@ -274,17 +308,16 @@ private fun formatRemainingTime(startTimeMillis: Long): String {
     val calendarNow = Calendar.getInstance()
 
     return when {
-        minutes < 60                                                                                         -> "In $minutes min"
-        hours < 24 && calendarStart.get(Calendar.DAY_OF_YEAR) == calendarNow.get(Calendar.DAY_OF_YEAR)       -> "In $hours hr"
+        minutes < 60                                                                                         -> "In $minutes minutes"
+        hours < 24 && calendarStart.get(Calendar.DAY_OF_YEAR) == calendarNow.get(Calendar.DAY_OF_YEAR)       -> "In $hours hours"
         days.toInt() == 0 && calendarStart.get(Calendar.DAY_OF_YEAR) > calendarNow.get(Calendar.DAY_OF_YEAR) -> { // Tomorrow
             val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
             "Tomorrow at ${sdf.format(Date(startTimeMillis))}"
         }
 
         else                                                                                                 -> {
-            // More than tomorrow, show day, hour, and minute
             val remainingHoursInDay = hours % 24
-            "In $days d $remainingHoursInDay hr"
+            "In $days day ${if (remainingHoursInDay > 0) "$remainingHoursInDay hours" else ""}"
         }
     }
 
@@ -292,87 +325,113 @@ private fun formatRemainingTime(startTimeMillis: Long): String {
 
 @SuppressLint("UnusedContentLambdaTargetStateParameter")
 @Composable
-fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
+fun EventItem(
+    event: CalendarEvent,
+    modifier: Modifier = Modifier,
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 20.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable { expanded = !expanded },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                alpha = 0.4f
+            )
+        )
     ) {
-
-        Row(
-            modifier = Modifier.padding(12.dp),
-//            verticalAlignment = Alignment.CenterVertically,
-        ) {
-
-            Spacer(modifier = Modifier.width(12.dp))
-
+        Row(modifier = Modifier.padding(vertical = 20.dp, horizontal = 20.dp)) {
             Column(
                 modifier = Modifier
                     .weight(1f),
             )
             {
-                Row(
-                    modifier = Modifier.height(IntrinsicSize.Min),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = formatRemainingTime(event.startTimeMillis),
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.alignByBaseline()
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    "event.location"?.let {
-                        if (it.isNotBlank()) {
-                            Text(
-                                text = "(at $it)",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.alignByBaseline()
-                            )
-                        }
+                Text(
+                    text = formatRemainingTime(event.startTimeMillis),
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                Spacer(modifier = Modifier.width(3.dp))
+
+                event.location?.let {
+                    if (it.isNotBlank()) {
+                        Text(
+                            text = "at $it",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
                     text = event.eventName,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                 )
+
                 AnimatedVisibility(visible = expanded) {
                     Column {
-                        Spacer(modifier = Modifier.height(15.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Text(
+                            text = "Duration",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Time: ${timeFormatter.format(Date(event.startTimeMillis))} - ${
+                                timeFormatter.format(
+                                    Date(event.endTimeMillis),
+                                )
+                            }",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Text(
+                            text = "Date: ${
+                                dateFormatter.format(Date(event.startTimeMillis))
+                            }",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                         event.notes?.let {
                             if (it.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(17.dp))
+                                Text(
+                                    text = "Notes",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 16.sp,
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Description: $it",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(7.dp))
 
                         event.attendees?.let { attendees ->
                             val validAttendees =
                                 attendees.filter { !(it.resource ?: false) && it.email != null }
                             if (validAttendees.isNotEmpty()) {
                                 Column {
-                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Spacer(modifier = Modifier.height(17.dp))
                                     Text(
                                         text = "Attendees",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 22.sp,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 16.sp,
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     FlowRow(
@@ -385,7 +444,10 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
                                     ) {
                                         validAttendees.forEachIndexed { i, attendee ->
                                             val displayName =
-                                                remember(attendee.displayName, attendee.email) {
+                                                remember(
+                                                    attendee.displayName,
+                                                    attendee.email
+                                                ) {
                                                     (
                                                         attendee.displayName ?: (
                                                             attendee.email?.split("@")
@@ -407,7 +469,11 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
                                                     }
                                                 }
                                             Box {
-                                                Text(displayName, maxLines = 1)
+                                                Text(
+                                                    displayName,
+                                                    maxLines = 1,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                )
                                             }
                                         }
                                     }
@@ -418,7 +484,7 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
                 }
             }
 
-            androidx.compose.material3.Icon(
+            Icon(
                 imageVector = if (expanded) {
                     Icons.Filled.KeyboardArrowUp
                 } else {

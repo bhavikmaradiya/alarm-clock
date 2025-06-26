@@ -6,21 +6,21 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import com.bhavikm.calarm.navigation.Navigation
-import com.bhavikm.calarm.ui.theme.WorkManagerTheme
+import com.bhavikm.calarm.ui.theme.CalarmTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            EventApp()
+            Calarm()
         }
     }
 }
 
 @Composable
-private fun EventApp() {
-    WorkManagerTheme {
+private fun Calarm() {
+    CalarmTheme {
         Navigation()
     }
 }

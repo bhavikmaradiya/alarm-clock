@@ -9,7 +9,6 @@ import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.service.WorkScheduler
 import com.bhavikm.calarm.app.features.home.data.repository.HomeRepository
 import com.meticha.triggerx.TriggerXAlarmScheduler
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,7 +32,7 @@ class HomeViewModel(
     private val _uiEvent = MutableSharedFlow<HomeUIEvent>()
     val uiEvent: SharedFlow<HomeUIEvent> = _uiEvent.asSharedFlow()
 
-    init {
+    /*init {
         viewModelScope.launch {
             while (true) {
                 val appSettings = settingsRepository.getSettings().first()
@@ -46,7 +45,7 @@ class HomeViewModel(
                 delay(60_000L)
             }
         }
-    }
+    }*/
 
     fun getCalendar(context: Context) {
         viewModelScope.launch {
