@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bhavikm.calarm.app.core.data.repository.SettingsRepository
-import com.bhavikm.calarm.app.core.model.AppSettings
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.service.WorkScheduler
 import com.bhavikm.calarm.app.features.home.data.repository.HomeRepository
@@ -34,12 +33,10 @@ class HomeViewModel(
     private val _uiEvent = MutableSharedFlow<HomeUIEvent>()
     val uiEvent: SharedFlow<HomeUIEvent> = _uiEvent.asSharedFlow()
 
-    private lateinit var appSettings: AppSettings
-
     init {
         viewModelScope.launch {
             while (true) {
-                appSettings = settingsRepository.getSettings().first()
+                val appSettings = settingsRepository.getSettings().first()
                 _state.update {
                     it.copy(
                         lastSynced = appSettings.lastSyncedTime,
@@ -64,16 +61,9 @@ class HomeViewModel(
                         "Calendar",
                         error.toString(),
                     )
-                    _state.update {
-                        it.copy(
-                            status = HomeStatus.ERROR,
-                            error = error.message,
-                            lastSynced = appSettings.lastSyncedTime,
-                        )
-                    }
                 },
                 onSuccess = { events ->
-                    appSettings = settingsRepository.getSettings().first()
+                    val appSettings = settingsRepository.getSettings().first()
                     val calendarEvents =
                         repository.getLocalCalendarEvents().firstOrNull() ?: emptyList()
                     if (calendarEvents.isEmpty()) {

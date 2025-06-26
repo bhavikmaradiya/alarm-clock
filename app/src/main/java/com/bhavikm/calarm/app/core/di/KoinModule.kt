@@ -54,7 +54,7 @@ val appModule = module {
         GoogleCalendarService(
             context = get(),
             calendarEventDao = get<CalendarEventDao>(),
-            appSettingsDao = get<AppSettingsDao>(),
+            settingsRepository = get<SettingsRepository>(),
             alarmScheduler = get<TriggerXAlarmScheduler>(),
             authService = get<AuthService>(),
         )

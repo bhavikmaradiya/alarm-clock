@@ -17,4 +17,9 @@ class SettingsRepository(
         val userId = requireNotNull(authService.currentUser?.uid)
         return settingsDao.getSettings(userId)
     }
+
+    suspend fun saveSettings(settings: AppSettings) {
+        val userId = requireNotNull(authService.currentUser?.uid)
+        settingsDao.upsertSettings(settings.copy(userId = userId))
+    }
 }

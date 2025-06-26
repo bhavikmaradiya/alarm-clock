@@ -22,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.androidx.compose.koinViewModel
 
@@ -77,8 +76,8 @@ fun SignInScreen(
 
 @Composable
 fun SignInComposable(
-    signInState: SignInState = SignInState(),
-    snackBarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    signInState: SignInState,
+    snackBarHostState: SnackbarHostState,
     onSignInClick: () -> Unit = {},
 ) {
     Scaffold(
@@ -100,7 +99,11 @@ fun SignInComposable(
 }
 
 @Composable
-fun Body(signInState: SignInState, onSignInClick: () -> Unit, modifier: Modifier = Modifier) {
+fun Body(
+    signInState: SignInState,
+    onSignInClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier
             .fillMaxSize()
@@ -135,6 +138,3 @@ fun Body(signInState: SignInState, onSignInClick: () -> Unit, modifier: Modifier
     }
 }
 
-@Preview
-@Composable
-private fun SignInScreenPreview() = SignInComposable()

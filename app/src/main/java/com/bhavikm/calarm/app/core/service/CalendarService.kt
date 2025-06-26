@@ -3,7 +3,7 @@ package com.bhavikm.calarm.app.core.service
 import android.content.Context
 import android.util.Log
 import com.bhavikm.calarm.R
-import com.bhavikm.calarm.app.core.data.source.local.AppSettingsDao
+import com.bhavikm.calarm.app.core.data.repository.SettingsRepository
 import com.bhavikm.calarm.app.core.data.source.local.CalendarEventDao
 import com.bhavikm.calarm.app.core.model.AttendeeData
 import com.bhavikm.calarm.app.core.model.AttendeeResponseStatus
@@ -35,7 +35,7 @@ interface CalendarService {
 class GoogleCalendarService(
     private val context: Context,
     private val calendarEventDao: CalendarEventDao,
-    private val appSettingsDao: AppSettingsDao,
+    private val settingsRepository: SettingsRepository,
     val alarmScheduler: TriggerXAlarmScheduler,
     private val authService: AuthService,
 ) : CalendarService {
@@ -64,11 +64,10 @@ class GoogleCalendarService(
     override suspend fun getCalendarEvents(): Result<List<CalendarEvent>> =
         withContext(Dispatchers.IO) {
             try {
-                val userId = requireNotNull(authService.currentUser?.uid)
                 val settings =
-                    appSettingsDao.getSettings(userId).first()
+                    settingsRepository.getSettings().first()
                         .copy(lastSyncedTime = Clock.System.now().toEpochMilliseconds())
-                appSettingsDao.upsertSettings(settings)
+                settingsRepository.saveSettings(settings)
                 alarmScheduler.cancelAllAlarms(context)
                 calendarEventDao.deleteAllEvents()
                 Log.d(TAG, "Fetching Google Calendar events with access token.")

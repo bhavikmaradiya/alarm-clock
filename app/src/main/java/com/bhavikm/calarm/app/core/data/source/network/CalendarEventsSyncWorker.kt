@@ -11,6 +11,7 @@ import com.bhavikm.calarm.app.core.service.CalendarService
 import com.meticha.triggerx.TriggerXAlarmScheduler
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.datetime.Clock
 import org.koin.core.component.KoinComponent
 
 class CalendarEventsSyncWorker(
@@ -39,7 +40,7 @@ class CalendarEventsSyncWorker(
         Log.d(TAG, "CalendarSyncWorker: Work execution started.")
 
         val appSettings = settingsRepository.getSettings().first()
-        val currentTime = System.currentTimeMillis()
+        val currentTime = Clock.System.now().toEpochMilliseconds()
 
         if (appSettings.lastSyncedTime != null &&
             (currentTime - appSettings.lastSyncedTime <= MINUTE_IN_MILLIS)
