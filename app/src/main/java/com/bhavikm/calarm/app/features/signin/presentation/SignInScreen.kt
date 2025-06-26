@@ -4,7 +4,6 @@ import android.app.Activity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -107,9 +106,7 @@ fun Body(
     Box(
         modifier
             .fillMaxSize()
-            .background(
-                color = Color.LightGray.copy(alpha = 0.3f),
-            ),
+           
     ) {
         when (signInState.status) {
             SignInStatus.LOADING -> {
