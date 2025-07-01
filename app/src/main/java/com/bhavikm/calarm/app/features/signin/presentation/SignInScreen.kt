@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -18,10 +18,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bhavikm.calarm.CalarmApp.Companion.isNetworkAvailable
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -33,6 +36,7 @@ fun SignInScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
     val uiEvent = viewModel.uiEvent
+    val scope = rememberCoroutineScope()
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
@@ -69,7 +73,15 @@ fun SignInScreen(
     SignInComposable(
         signInState = state,
         snackBarHostState = snackBarHostState,
-        onSignInClick = { viewModel.signIn(activity) },
+        onSignInClick = {
+            if (isNetworkAvailable(activity)) {
+                viewModel.signIn(activity)
+            } else {
+                scope.launch {
+                    snackBarHostState.showSnackbar("Please check your internet connection")
+                }
+            }
+        },
     )
 }
 
@@ -106,11 +118,11 @@ fun Body(
     Box(
         modifier
             .fillMaxSize()
-           
+
     ) {
         when (signInState.status) {
             SignInStatus.LOADING -> {
-                CircularProgressIndicator(
+                LoadingIndicator(
                     modifier = Modifier.align(alignment = Alignment.Center),
                     color = Color.Gray,
                 )

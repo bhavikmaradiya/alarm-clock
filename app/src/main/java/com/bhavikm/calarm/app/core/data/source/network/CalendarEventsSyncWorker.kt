@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.bhavikm.calarm.CalarmApp.Companion.isNetworkAvailable
 import com.bhavikm.calarm.app.core.data.repository.SettingsRepository
 import com.bhavikm.calarm.app.core.service.AnalyticsService
 import com.bhavikm.calarm.app.core.service.AuthService
@@ -33,6 +34,10 @@ class CalendarEventsSyncWorker(
     }
 
     override suspend fun doWork(): Result {
+        if (!isNetworkAvailable(appContext)) {
+            Log.e(TAG, "CalendarSyncWorker: No network available.")
+            return Result.failure()
+        }
         analytics.logEvent(TAG) {
             put("Work", "Work execution started")
             put("User", authService.currentUser?.email ?: "Unknown")

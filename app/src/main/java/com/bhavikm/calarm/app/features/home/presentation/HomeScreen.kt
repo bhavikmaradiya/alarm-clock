@@ -1,7 +1,11 @@
 package com.bhavikm.calarm.app.features.home.presentation
 
 import android.annotation.SuppressLint
+import android.app.NotificationManager
+import android.content.Context
+import android.content.Intent
 import android.icu.util.Calendar
+import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,20 +30,22 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,10 +58,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bhavikm.calarm.CalarmApp.Companion.isNetworkAvailable
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.model.EventStatus
 import com.meticha.triggerx.permission.PermissionState
 import com.meticha.triggerx.permission.rememberAppPermissionState
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
@@ -70,7 +78,17 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
     val uiEvent = viewModel.uiEvent
     val permissionState = rememberAppPermissionState()
     val snackBarHostState = remember { SnackbarHostState() }
+    val notificationManager =
+        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
     LaunchedEffect(Unit) {
+        if (!notificationManager.isNotificationPolicyAccessGranted
+        ) {
+            val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+            context.startActivity(intent)
+            snackBarHostState.showSnackbar("Please grant sound access")
+        }
+
         uiEvent.collect { event ->
             when (event) {
                 is HomeUIEvent.ScheduledEvent -> {
@@ -89,6 +107,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
     }
 
     HomeComposable(
+        context = context,
         homeSate = state,
         snackBarHostState = snackBarHostState,
         permissionState = permissionState,
@@ -241,21 +260,24 @@ private fun isYesterday(
            ) == targetCalendar.get(Calendar.DAY_OF_YEAR)
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun HomeComposable(
+    context: Context,
     homeSate: HomeState = HomeState(),
     permissionState: PermissionState,
     snackBarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onSyncClick: () -> Unit = {},
 ) {
+    val scope = rememberCoroutineScope()
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackBarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Events") },
-
+                colors = TopAppBarDefaults.topAppBarColors().copy(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
                 actions = {
                     FilledTonalIconButton(
                         content = {
@@ -265,12 +287,18 @@ private fun HomeComposable(
                             )
                         },
                         onClick = {
-                            if (permissionState.allRequiredGranted()) {
+                            if (permissionState.allRequiredGranted() && isNetworkAvailable(context)) {
                                 onSyncClick.invoke()
-                            } else {
+                            } else if (!permissionState.allRequiredGranted()) {
                                 permissionState.requestPermission()
+                            } else {
+                                scope.launch {
+                                    snackBarHostState.showSnackbar("Please check your internet connection")
+                                }
                             }
                         },
+                        colors = IconButtonDefaults.filledTonalIconButtonColors()
+                            .copy(containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.padding(end = 16.dp)
                     )
@@ -337,9 +365,7 @@ fun EventItem(
             .clickable { expanded = !expanded },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
-                alpha = 0.4f
-            )
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Row(modifier = Modifier.padding(vertical = 20.dp, horizontal = 20.dp)) {
@@ -353,6 +379,7 @@ fun EventItem(
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
+                    fontSize = 26.sp,
                 )
 
                 Spacer(modifier = Modifier.width(3.dp))
@@ -364,6 +391,7 @@ fun EventItem(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Normal,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
                         )
                     }
                 }
@@ -374,6 +402,7 @@ fun EventItem(
                     text = event.eventName,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
                 )
 
                 AnimatedVisibility(visible = expanded) {
@@ -394,6 +423,7 @@ fun EventItem(
                                 )
                             }",
                             style = MaterialTheme.typography.bodyMedium,
+                            fontSize = 14.sp
                         )
                         Spacer(modifier = Modifier.height(1.dp))
                         Text(
@@ -401,6 +431,7 @@ fun EventItem(
                                 dateFormatter.format(Date(event.startTimeMillis))
                             }",
                             style = MaterialTheme.typography.bodyMedium,
+                            fontSize = 14.sp
                         )
                         event.notes?.let {
                             if (it.isNotBlank()) {
@@ -416,6 +447,7 @@ fun EventItem(
                                 Text(
                                     text = it,
                                     style = MaterialTheme.typography.bodyMedium,
+                                    fontSize = 14.sp
                                 )
                             }
                         }
@@ -473,6 +505,7 @@ fun EventItem(
                                                     displayName,
                                                     maxLines = 1,
                                                     style = MaterialTheme.typography.bodyMedium,
+                                                    fontSize = 14.sp
                                                 )
                                             }
                                         }
@@ -506,7 +539,10 @@ fun EventStatusIndicator(status: EventStatus, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(10.dp)
-            .background(color = getStatusColor(status), shape = MaterialTheme.shapes.small),
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.small
+            ),
     )
 }
 

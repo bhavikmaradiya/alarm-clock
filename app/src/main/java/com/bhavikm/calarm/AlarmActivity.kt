@@ -1,31 +1,35 @@
 package com.bhavikm.calarm
 
-import android.content.Context
+import android.app.NotificationManager
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.filled.AlarmOn
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -53,7 +58,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Simple Date Formatters
 private val timeFormatter = SimpleDateFormat("h:mm a", Locale.getDefault())
 private val dateFormatter = SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault())
 private const val TAG = "AlarmActivity"
@@ -82,73 +86,68 @@ class AlarmActivity : TriggerXActivity() {
 
     private fun playNotificationSound() {
         try {
-            audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
             originalVolume = audioManager?.getStreamVolume(AudioManager.STREAM_RING)
-            val maxVolume = audioManager?.getStreamMaxVolume(AudioManager.STREAM_RING)
-            maxVolume?.let {
-                audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0)
+
+            val notificationManager =
+                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            if (notificationManager.isNotificationPolicyAccessGranted) {
+                val maxVolume = audioManager?.getStreamMaxVolume(AudioManager.STREAM_RING)
+                maxVolume?.let {
+                    audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0)
+                }
+            } else {
+                Log.w(TAG, "DND access not granted; skipping volume change")
             }
 
-            val notificationSoundUri: Uri? =
-                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            val notificationSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+
             if (notificationSoundUri != null) {
                 mediaPlayer = MediaPlayer().apply {
                     setDataSource(this@AlarmActivity, notificationSoundUri)
-                    setOnPreparedListener { start() }
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
                     isLooping = true
-                    setOnCompletionListener { mp ->
-                        mp.reset()
-                        mp.release()
-                        mediaPlayer = null
-                        // Restore original volume
-                        originalVolume?.let {
-                            audioManager?.setStreamVolume(
-                                AudioManager.STREAM_RING,
-                                it,
-                                0,
-                            )
-                        }
+                    setOnPreparedListener { start() }
+                    setOnCompletionListener {
+                        releaseMediaPlayer()
                     }
                     setOnErrorListener { mp, what, extra ->
-                        Log.e(TAG, "MediaPlayer error: what: $what, extra: $extra")
-                        mp.reset()
-                        mp.release()
-                        mediaPlayer = null
-                        // Restore original volume
-                        originalVolume?.let {
-                            audioManager?.setStreamVolume(
-                                AudioManager.STREAM_RING,
-                                it,
-                                0,
-                            )
-                        }
+                        Log.e(TAG, "MediaPlayer error: what=$what, extra=$extra")
+                        releaseMediaPlayer()
                         true
                     }
                     prepareAsync()
                 }
             } else {
-                Log.w(TAG, "Default notification sound URI is null.")
-                originalVolume?.let {
-                    audioManager?.setStreamVolume(
-                        AudioManager.STREAM_RING,
-                        it,
-                        0,
-                    )
-                }
+                Log.w(TAG, "Default ringtone URI is null.")
+                restoreOriginalVolume()
             }
         } catch (e: IOException) {
-            Log.e(TAG, "Error setting up MediaPlayer for notification sound", e)
-            mediaPlayer?.release()
-            mediaPlayer = null
-            originalVolume?.let { audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0) }
+            Log.e(TAG, "Error setting up MediaPlayer", e)
+            releaseMediaPlayer()
         } catch (e: IllegalStateException) {
-            Log.e(TAG, "IllegalStateException for MediaPlayer", e)
-            mediaPlayer?.release()
-            mediaPlayer = null
-            // Restore original volume
-            originalVolume?.let { audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0) }
+            Log.e(TAG, "IllegalStateException", e)
+            releaseMediaPlayer()
         }
     }
+
+    private fun releaseMediaPlayer() {
+        mediaPlayer?.release()
+        mediaPlayer = null
+        restoreOriginalVolume()
+    }
+
+    private fun restoreOriginalVolume() {
+        originalVolume?.let {
+            audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0)
+        }
+    }
+
 
     @Composable
     override fun AlarmContent() {
@@ -173,174 +172,195 @@ class AlarmActivity : TriggerXActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Notifications,
+                    imageVector = Icons.Default.AlarmOn,
                     contentDescription = "Trigger Icon",
-                    tint = Color(0xFF111111),
+                    tint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(80.dp),
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 if (calendarEvent != null) {
                     Text(
                         text = calendarEvent.eventName,
-                        fontSize = 36.sp,
+                        fontSize = 27.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111111),
+                        color = MaterialTheme.colorScheme.secondary,
                         textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(35.dp))
+
+                    // Row for Date and Time
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        EventDetailItem(
+                            iconVector = Icons.Filled.CalendarMonth,
+                            label = "Date",
+                            value = dateFormatter.format(Date(calendarEvent.startTimeMillis)),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        EventDetailItem(
+                            iconVector = Icons.Filled.Schedule,
+                            label = "Time",
+                            value = "${timeFormatter.format(Date(calendarEvent.startTimeMillis))} - ${
+                                timeFormatter.format(Date(calendarEvent.endTimeMillis))
+                            }",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = "Time: ${
-                            timeFormatter.format(
-                                Date(calendarEvent.startTimeMillis),
-                            )
-                        } - ${
-                            timeFormatter.format(
-                                Date(calendarEvent.endTimeMillis),
-                            )
-                        }",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF333333),
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Date: ${dateFormatter.format(Date(calendarEvent.startTimeMillis))}",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF333333),
-                        textAlign = TextAlign.Center,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        EventDetailItem(
+                            iconVector = Icons.Filled.LocationOn,
+                            label = "Location",
+                            value = calendarEvent.location?.takeIf { it.isNotBlank() }
+                                    ?: "Not specified",
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        val attendee = calendarEvent.attendees?.find { it.organizer == true }
 
-                    calendarEvent.location?.takeIf { it.isNotBlank() }?.let {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Location: $it",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color(0xFF555555),
-                            textAlign = TextAlign.Center,
+                        val hostValue =
+                            attendee?.displayName ?: (
+                                attendee?.email?.split("@")
+                                    ?.first()?.split(".")
+                                    ?.first()
+                                    ?.replaceFirstChar(Char::titlecase)
+                                ?: "Unknown"
+                                                     )
+                        EventDetailItem(
+                            iconVector = Icons.Filled.Person,
+                            label = "Host",
+                            value = hostValue,
+                            modifier = Modifier.weight(1f)
                         )
                     }
 
                     calendarEvent.notes?.takeIf { it.isNotBlank() }?.let { notes ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Description: $notes",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color(0xFF555555),
-                            textAlign = TextAlign.Center,
-                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row {
+                            EventDetailItem(
+                                iconVector = Icons.Filled.Notes,
+                                label = "Notes",
+                                value = notes,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
 
                     calendarEvent.attendees?.let { attendees ->
                         val validAttendees =
                             attendees.filter { !(it.resource ?: false) && it.email != null }
                         if (validAttendees.isNotEmpty()) {
-                            Column {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Text(
-                                    text = "Attendees",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 25.sp,
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(
-                                        5.dp,
-                                        Alignment.CenterVertically,
-                                    ),
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                ) {
-                                    validAttendees.forEach { attendee ->
-                                        val displayName =
-                                            remember(attendee.displayName, attendee.email) {
-                                                attendee.displayName ?: (
-                                                    attendee.email?.split("@")
-                                                        ?.first()?.split(".")
-                                                        ?.first()
-                                                        ?.replaceFirstChar(
-                                                            Char::titlecase,
-                                                        )
-                                                    ?: "Unknown"
-                                                                        )
-                                            }
-                                        AssistChip(
-                                            onClick = { /* No action for now */ },
-                                            label = { Text(displayName, maxLines = 1) },
-                                            modifier = Modifier.height(30.dp),
-                                            leadingIcon = {
-                                                if (attendee.organizer == true) {
-                                                    Icon(
-                                                        Icons.Filled.Star,
-                                                        contentDescription = "Organizer",
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                    )
-                                                }
-                                            },
-                                            border = if (attendee.organizer == true) {
-                                                BorderStroke(
-                                                    1.dp,
-                                                    MaterialTheme.colorScheme.primary,
-                                                )
-                                            } else {
-                                                BorderStroke(1.dp, Color.White)
-                                            },
-                                        )
-                                    }
+                            val values = validAttendees.mapIndexed { i, attendee ->
+                                val displayName = (
+                                                      attendee.displayName ?: (
+                                                          attendee.email?.split("@")
+                                                              ?.first()?.split(".")
+                                                              ?.first()
+                                                              ?.replaceFirstChar(
+                                                                  Char::titlecase,
+                                                              )
+                                                          ?: "Unknown"
+                                                                              )
+                                                  ) +
+                                                  if (i !=
+                                                      validAttendees.size -
+                                                      1
+                                                  ) {
+                                                      ","
+                                                  } else {
+                                                      ""
+                                                  }
+                                return@mapIndexed displayName
+                            }.joinToString(" ")
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Row {
+                                    EventDetailItem(
+                                        iconVector = Icons.Filled.People,
+                                        label = "Attendees",
+                                        value = values,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                 }
+
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Status: ${calendarEvent.eventStatus.name}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = getStatusColor(calendarEvent.eventStatus),
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(modifier = Modifier.height(50.dp))
-                    Button(onClick = {
-                        finish()
-                    }) {
-                        Text(text = "STOP")
-                    }
                 } else {
                     Text(
-                        text = "Event Data Unavailable",
-                        fontSize = 36.sp,
+                        text = "Unavailable",
+                        fontSize = 27.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111111),
+                        color = MaterialTheme.colorScheme.secondary,
                         textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                     Text(
                         text = "Could not load event details.",
-                        fontSize = 18.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF333333),
                         textAlign = TextAlign.Center,
                     )
-                    Spacer(modifier = Modifier.height(50.dp))
-                    Button(onClick = {
-                        finish()
-                    }) {
-                        Text(text = "STOP")
-                    }
+                }
+                Spacer(modifier = Modifier.height(35.dp))
+                Button(
+                    onClick = { finish() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "STOP")
                 }
             }
         }
     }
+
+    @Composable
+    private fun EventDetailItem(
+        iconVector: ImageVector,
+        label: String,
+        value: String,
+        modifier: Modifier = Modifier,
+    ) {
+        Column(modifier = modifier, horizontalAlignment = Alignment.Start) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = iconVector,
+                    contentDescription = label,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = label,
+                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                fontSize = 15.sp,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+
 
     override fun onDestroy() {
         super.onDestroy()
@@ -351,14 +371,13 @@ class AlarmActivity : TriggerXActivity() {
             release()
         }
         mediaPlayer = null
-
-        originalVolume?.let { audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0) }
+        restoreOriginalVolume()
     }
 }
 
 @Composable
 private fun getStatusColor(status: EventStatus): Color = when (status) {
-    EventStatus.PENDING   -> Color(0xFFFFA726) // Orange500
+    EventStatus.PENDING -> Color(0xFFFFA726) // Orange500
     EventStatus.SCHEDULED -> Color(0xFF66BB6A) // Green400
     EventStatus.COMPLETED -> Color(0xFF808080) // Grey
     EventStatus.CANCELLED -> Color(0xFFEF5350) // Red400
