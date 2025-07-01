@@ -1,6 +1,5 @@
 package com.bhavikm.calarm.app.features.home.presentation
 
-import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -9,12 +8,14 @@ import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -55,10 +57,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.times
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bhavikm.calarm.CalarmApp.Companion.isNetworkAvailable
+import com.bhavikm.calarm.app.core.model.AttendeeData
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.model.EventStatus
 import com.meticha.triggerx.permission.PermissionState
@@ -70,6 +77,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
@@ -172,7 +180,6 @@ fun Body(
                 HomeStatus.LOADED  -> {
                     LazyColumn {
                         items(homeSate.events) { event ->
-                            // eventsList is your List<CalendarEvent>
                             EventItem(
                                 event = event,
                                 modifier = Modifier.padding(
@@ -200,6 +207,88 @@ fun Body(
                         textAlign = TextAlign.Center,
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttendeeInitialsCircle(
+    name: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 24.dp,
+) {
+    val initial = name.firstOrNull()?.uppercaseChar() ?: '?'
+    Box(
+        modifier = modifier
+            .size(size)
+            .background(rememberAvatarBackgroundColor(name = name), CircleShape)
+            .clip(CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = initial.toString(),
+            color = Color.White, // Assuming white text for contrast
+            fontSize = (size.value / 2).sp, // Dynamic font size
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun rememberAvatarBackgroundColor(name: String): Color {
+    val themeColors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+    )
+    return themeColors[abs(name.hashCode()) % themeColors.size]
+}
+
+@Composable
+private fun StackedAttendeesAvatars(
+    attendees: List<AttendeeData>,
+    modifier: Modifier = Modifier,
+    avatarSize: Dp = 24.dp,
+    overlapFactor: Float = 0.4f, // How much of the avatar width should overlap
+    maxVisible: Int = 3,
+) {
+    val validAttendees = attendees
+        .filter { !(it.resource ?: false) && (it.displayName != null || it.email != null) }
+        .take(maxVisible + 1) // Take one more to check if we need to show "+N"
+
+    if (validAttendees.isEmpty()) return
+
+    Box(modifier = modifier) {
+        validAttendees.take(maxVisible).forEachIndexed { index, attendee ->
+            val name = attendee.displayName ?: attendee.email ?: "Unknown"
+            AttendeeInitialsCircle(
+                name = name,
+                size = avatarSize,
+                modifier = Modifier
+                    .padding(start = (index * avatarSize * (1 - overlapFactor)))
+                    .zIndex(maxVisible - index.toFloat()) // Higher zIndex for items at the start of the list (drawn on top)
+            )
+        }
+
+        if (validAttendees.size > maxVisible) {
+            val remainingCount =
+                attendees.size - maxVisible // Calculate based on original full list
+            Box(
+                modifier = Modifier
+                    .padding(start = (maxVisible * avatarSize * (1 - overlapFactor)))
+                    .size(avatarSize)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), CircleShape)
+                    .clip(CircleShape)
+                    .zIndex(0f), // Ensure it's behind the last visible avatar if needed, or drawn last
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "+$remainingCount",
+                    color = Color.White,
+                    fontSize = (avatarSize.value / 2.5).sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -351,7 +440,6 @@ private fun formatRemainingTime(startTimeMillis: Long): String {
 
 }
 
-@SuppressLint("UnusedContentLambdaTargetStateParameter")
 @Composable
 fun EventItem(
     event: CalendarEvent,
@@ -368,7 +456,10 @@ fun EventItem(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
-        Row(modifier = Modifier.padding(vertical = 20.dp, horizontal = 20.dp)) {
+        Row(
+            modifier = Modifier
+                .padding(vertical = 20.dp, horizontal = 20.dp)
+        ) {
             Column(
                 modifier = Modifier
                     .weight(1f),
@@ -433,22 +524,78 @@ fun EventItem(
                             style = MaterialTheme.typography.bodyMedium,
                             fontSize = 14.sp
                         )
-                        event.notes?.let {
-                            if (it.isNotBlank()) {
+                        event.notes?.let { notes ->
+                            if (notes.isNotBlank()) {
+                                var isNotesExpanded by rememberSaveable { mutableStateOf(false) }
+                                var textIsTruncated by remember { mutableStateOf(false) }
+                                val collapsedMaxLines = 5
+                                val interactionSource = remember { MutableInteractionSource() }
+
                                 Spacer(modifier = Modifier.height(17.dp))
-                                Text(
-                                    text = "Notes",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.secondary,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 16.sp,
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontSize = 14.sp
-                                )
+                                Column(
+                                    // Make the whole notes section clickable to toggle expansion
+                                    modifier = Modifier.clickable(
+                                        interactionSource = interactionSource,
+                                        indication = null
+                                    ) {
+
+                                        // Only toggle if there's actually more to show or if it's already expanded
+                                        if (textIsTruncated || isNotesExpanded) {
+                                            isNotesExpanded = !isNotesExpanded
+                                        }
+                                    }
+                                ) {
+                                    Text(
+                                        text = "Notes",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 16.sp,
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    AnimatedVisibility(visible = !isNotesExpanded) {
+                                        Text(
+                                            text = notes,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontSize = 14.sp,
+                                            maxLines = collapsedMaxLines,
+                                            overflow = TextOverflow.Ellipsis,
+                                            onTextLayout = { textLayoutResult ->
+                                                textIsTruncated = textLayoutResult.didOverflowHeight
+                                            }
+                                        )
+                                    }
+                                    AnimatedVisibility(visible = isNotesExpanded) {
+                                        Text(
+                                            text = notes,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontSize = 14.sp
+                                        )
+                                    }
+
+                                    // Conditionally show the "Show more/less" indicator
+                                    AnimatedVisibility(visible = textIsTruncated || isNotesExpanded) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (isNotesExpanded) "Show less" else "Show more",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(end = 4.dp)
+                                            )
+                                            Icon(
+                                                imageVector = if (isNotesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                                contentDescription = if (isNotesExpanded) "Collapse notes" else "Expand notes",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -517,37 +664,32 @@ fun EventItem(
                 }
             }
 
-            Icon(
-                imageVector = if (expanded) {
-                    Icons.Filled.KeyboardArrowUp
-                } else {
-                    Icons.Filled.KeyboardArrowDown
-                },
-                contentDescription = if (expanded) "Collapse" else "Expand",
-                modifier = Modifier
-                    .size(30.dp)
-                    .padding(start = 8.dp), // Add some padding if needed
-                tint = MaterialTheme.colorScheme.onSurfaceVariant // Optional: Set icon color
-            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxHeight()
+            ) {
+                Icon(
+                    imageVector = if (expanded) {
+                        Icons.Filled.KeyboardArrowUp
+                    } else {
+                        Icons.Filled.KeyboardArrowDown
+                    },
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    modifier = Modifier
+                        .size(30.dp)
+                        .padding(start = 8.dp), // Add some padding if needed
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant // Optional: Set icon color
+                )
+                if (!expanded && !event.attendees.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    StackedAttendeesAvatars(attendees = event.attendees)
+                }
+            }
         }
     }
 }
 
-
-@Composable
-fun EventStatusIndicator(status: EventStatus, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .size(10.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.small
-            ),
-    )
-}
-
-// Helper function to get a color based on EventStatus
-// You should customize these colors to fit your app's theme
 @Composable
 private fun getStatusColor(status: EventStatus): Color = when (status) {
     EventStatus.PENDING   -> MaterialTheme.colorScheme.secondaryContainer
