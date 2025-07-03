@@ -66,10 +66,10 @@ class CalarmApp :
                     val eventFromDb = calendarEventDao.getEventById(alarmId)
                     return if (eventFromDb != null) {
                         Log.d(TAG, "Providing data for event: ${eventFromDb.eventName}")
-                        eventFromDb.toBundle() // Convert your CalendarEvent to Bundle
+                        eventFromDb.toBundle()
                     } else {
                         Log.w(TAG, "No event found for alarmId: $alarmId to provide data.")
-                        Bundle.EMPTY // Return an empty bundle if no event found
+                        Bundle.EMPTY
                     }
                 }
             }

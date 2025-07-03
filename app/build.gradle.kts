@@ -94,7 +94,10 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose.android)
+    implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.database)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
@@ -127,4 +130,11 @@ dependencies {
     implementation(libs.triggerx)
     implementation(libs.kotlinx.datetime)
     implementation(libs.koin.androidx.workmanager)
+
+    // Retrofit
+    implementation(libs.retrofit) // Or latest
+    implementation(libs.converter.gson) // For Gson
+
+    // OkHttp Logging Interceptor (highly recommended for debugging)
+    implementation(libs.logging.interceptor) // Or latest
 }

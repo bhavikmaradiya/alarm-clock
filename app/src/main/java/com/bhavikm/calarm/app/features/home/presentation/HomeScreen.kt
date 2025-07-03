@@ -7,6 +7,7 @@ import android.icu.util.Calendar
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -94,7 +95,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
         ) {
             val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
             context.startActivity(intent)
-            snackBarHostState.showSnackbar("Please grant sound access")
+            snackBarHostState.showSnackbar("Please grant sound access for Calarm to work properly.")
         }
 
         uiEvent.collect { event ->
@@ -108,7 +109,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
         }
     }
 
-    LaunchedEffect(key1 = permissionState.allRequiredGranted()) {
+    LaunchedEffect(key1 = Unit) {
         if (permissionState.allRequiredGranted()) {
             viewModel.getCalendar(context)
         }
@@ -223,7 +224,8 @@ private fun AttendeeInitialsCircle(
         modifier = modifier
             .size(size)
             .background(rememberAvatarBackgroundColor(name = name), CircleShape)
-            .clip(CircleShape),
+            .clip(CircleShape)
+            .border(width = 1.5.dp, color = Color.White, shape = CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -250,7 +252,7 @@ private fun StackedAttendeesAvatars(
     attendees: List<AttendeeData>,
     modifier: Modifier = Modifier,
     avatarSize: Dp = 24.dp,
-    overlapFactor: Float = 0.4f, // How much of the avatar width should overlap
+    overlapFactor: Float = 0.37f,
     maxVisible: Int = 3,
 ) {
     val validAttendees = attendees
@@ -376,12 +378,15 @@ private fun HomeComposable(
                             )
                         },
                         onClick = {
-                            if (permissionState.allRequiredGranted() && isNetworkAvailable(context)) {
-                                onSyncClick.invoke()
-                            } else if (!permissionState.allRequiredGranted()) {
-                                permissionState.requestPermission()
-                            } else {
-                                scope.launch {
+                            scope.launch {
+                                if (permissionState.allRequiredGranted() && isNetworkAvailable(
+                                        context
+                                    )
+                                ) {
+                                    onSyncClick.invoke()
+                                } else if (!permissionState.allRequiredGranted()) {
+                                    permissionState.requestPermission()
+                                } else {
                                     snackBarHostState.showSnackbar("Please check your internet connection")
                                 }
                             }

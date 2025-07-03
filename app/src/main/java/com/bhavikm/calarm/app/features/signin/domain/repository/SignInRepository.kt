@@ -7,6 +7,9 @@ import com.google.firebase.auth.FirebaseUser
 
 interface SignInRepository {
     suspend fun signIn(context: Activity): Result<FirebaseUser>
+
+    /*suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent?*/
     suspend fun getGoogleSignInIntent(activity: Activity): Intent
-    fun processAuthCode(result: ActivityResult): Result<FirebaseUser>
+    suspend fun processAuthCode(result: ActivityResult): Result<FirebaseUser>
+    suspend fun processAuthCode(activity: Activity, result: ActivityResult): Result<FirebaseUser>
 }

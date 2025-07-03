@@ -39,22 +39,45 @@ class SignInViewModel(private val signInRepository: SignInRepository) : ViewMode
         }
     }
 
+    fun processResult(activity: Activity, result: ActivityResult) {
+        viewModelScope.launch {
+            signInRepository.processAuthCode(activity, result).fold(
+                onFailure = {
+                    _state.update { state ->
+                        state.copy(
+                            status = SignInStatus.ERROR,
+                            error = it.message,
+                        )
+                    }
+                },
+                onSuccess = {
+                    _state.update { state ->
+                        state.copy(status = SignInStatus.SUCCESS, userData = it)
+                    }
+                },
+            )
+        }
+    }
+
     fun processResult(result: ActivityResult) {
-        signInRepository.processAuthCode(result).fold(
-            onFailure = {
-                _state.update { state ->
-                    state.copy(
-                        status = SignInStatus.ERROR,
-                        error = it.message,
-                    )
-                }
-            },
-            onSuccess = {
-                _state.update { state ->
-                    state.copy(status = SignInStatus.SUCCESS, userData = it)
-                }
-            },
-        )
+
+        viewModelScope.launch {
+            signInRepository.processAuthCode(result).fold(
+                onFailure = {
+                    _state.update { state ->
+                        state.copy(
+                            status = SignInStatus.ERROR,
+                            error = it.message,
+                        )
+                    }
+                },
+                onSuccess = {
+                    _state.update { state ->
+                        state.copy(status = SignInStatus.SUCCESS, userData = it)
+                    }
+                },
+            )
+        }
     }
 
     override fun onCleared() {

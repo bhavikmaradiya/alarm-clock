@@ -31,6 +31,7 @@ interface AuthService {
 
     suspend fun signInWithGoogle(context: Activity): Result<FirebaseUser>
 
+    /*suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent?*/
     suspend fun getGoogleSignInIntent(activity: Activity): Intent
     fun signOut()
 }
@@ -59,11 +60,34 @@ class FirebaseAuthService(private val context: Context) : AuthService {
             .requestScopes(Scope(CalendarScopes.CALENDAR_READONLY))
             .requestServerAuthCode(
                 BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID,
-                false,
+                true,
             )
             .build()
         return GoogleSignIn.getClient(activity, gso).signInIntent
     }
+
+    /*override suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent? =
+        suspendCancellableCoroutine { continuation ->
+            val requestedScopes = listOf(Scope(CalendarScopes.CALENDAR_READONLY))
+            val authorizationRequest =
+                AuthorizationRequest.builder()
+                    .setRequestedScopes(requestedScopes)
+                    .requestOfflineAccess(BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID, true)
+                    .build()
+
+            Identity.getAuthorizationClient(activity)
+                .authorize(authorizationRequest)
+                .addOnSuccessListener { result ->
+                    continuation.resume(result.pendingIntent, null)
+                    *//*  if (result.hasResolution()) {
+                      } else {
+                          continuation.resume(result.pendingIntent, null)
+                      }*//*
+                }
+                .addOnFailureListener { e ->
+                    continuation.resumeWithException(e)
+                }
+        }*/
 
     private suspend fun getCredentials(context: Activity): Result<FirebaseUser> {
         val googleIdOption = GetGoogleIdOption.Builder()

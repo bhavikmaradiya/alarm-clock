@@ -3,11 +3,13 @@ package com.bhavikm.calarm
 import android.app.NotificationManager
 import android.media.AudioAttributes
 import android.media.AudioManager
-import android.media.MediaPlayer
+import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Bundle
-import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +27,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AlarmOn
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.People
@@ -35,25 +39,28 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.model.CalendarEventBundleConverter.toCalendarEvent
-import com.bhavikm.calarm.app.core.model.EventStatus
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
 import com.google.firebase.analytics.logEvent
 import com.google.firebase.auth.auth
 import com.meticha.triggerx.TriggerXActivity
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -64,9 +71,9 @@ private const val TAG = "AlarmActivity"
 
 class AlarmActivity : TriggerXActivity() {
 
-    private var mediaPlayer: MediaPlayer? = null
     private var originalVolume: Int? = null
-    private var audioManager: AudioManager? = null
+    private lateinit var audioManager: AudioManager
+    lateinit var ringtone: Ringtone
 
     val firebaseAuthUser = Firebase.auth.currentUser
 
@@ -85,66 +92,33 @@ class AlarmActivity : TriggerXActivity() {
     }
 
     private fun playNotificationSound() {
-        try {
-            audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-            originalVolume = audioManager?.getStreamVolume(AudioManager.STREAM_RING)
+        audioManager = getSystemService(
+            AudioManager::
+            class.java
+        )
+        originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING)
 
-            val notificationManager =
-                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            if (notificationManager.isNotificationPolicyAccessGranted) {
-                val maxVolume = audioManager?.getStreamMaxVolume(AudioManager.STREAM_RING)
-                maxVolume?.let {
-                    audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0)
-                }
-            } else {
-                Log.w(TAG, "DND access not granted; skipping volume change")
-            }
-
-            val notificationSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-
-            if (notificationSoundUri != null) {
-                mediaPlayer = MediaPlayer().apply {
-                    setDataSource(this@AlarmActivity, notificationSoundUri)
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build()
-                    )
-                    isLooping = true
-                    setOnPreparedListener { start() }
-                    setOnCompletionListener {
-                        releaseMediaPlayer()
-                    }
-                    setOnErrorListener { mp, what, extra ->
-                        Log.e(TAG, "MediaPlayer error: what=$what, extra=$extra")
-                        releaseMediaPlayer()
-                        true
-                    }
-                    prepareAsync()
-                }
-            } else {
-                Log.w(TAG, "Default ringtone URI is null.")
-                restoreOriginalVolume()
-            }
-        } catch (e: IOException) {
-            Log.e(TAG, "Error setting up MediaPlayer", e)
-            releaseMediaPlayer()
-        } catch (e: IllegalStateException) {
-            Log.e(TAG, "IllegalStateException", e)
-            releaseMediaPlayer()
+        val notificationManager =
+            getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (notificationManager.isNotificationPolicyAccessGranted) {
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING)
+            val halfVolume = maxVolume / 2
+            audioManager.setStreamVolume(AudioManager.STREAM_RING, halfVolume, 0)
         }
+
+        val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+        ringtone = RingtoneManager.getRingtone(applicationContext, ringtoneUri)
+        ringtone.audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE) // This maps to STREAM_RING
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        ringtone.play()
     }
 
-    private fun releaseMediaPlayer() {
-        mediaPlayer?.release()
-        mediaPlayer = null
-        restoreOriginalVolume()
-    }
 
     private fun restoreOriginalVolume() {
         originalVolume?.let {
-            audioManager?.setStreamVolume(AudioManager.STREAM_RING, it, 0)
+            audioManager.setStreamVolume(AudioManager.STREAM_RING, it, 0)
         }
     }
 
@@ -335,6 +309,10 @@ class AlarmActivity : TriggerXActivity() {
         value: String,
         modifier: Modifier = Modifier,
     ) {
+        var isNotesExpanded by rememberSaveable { mutableStateOf(false) }
+        var textIsTruncated by remember { mutableStateOf(false) }
+        val collapsedMaxLines = 5
+        val interactionSource = remember { MutableInteractionSource() }
         Column(modifier = modifier, horizontalAlignment = Alignment.Start) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -353,32 +331,69 @@ class AlarmActivity : TriggerXActivity() {
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = value,
-                fontSize = 15.sp,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Column(
+                // Make the whole notes section clickable to toggle expansion
+                modifier = Modifier.clickable(
+                    interactionSource = interactionSource,
+                    indication = null
+                ) {
+
+                    // Only toggle if there's actually more to show or if it's already expanded
+                    if (textIsTruncated || isNotesExpanded) {
+                        isNotesExpanded = !isNotesExpanded
+                    }
+                }
+            ) {
+                AnimatedVisibility(visible = !isNotesExpanded) {
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 15.sp,
+
+                        maxLines = collapsedMaxLines,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { textLayoutResult ->
+                            textIsTruncated = textLayoutResult.didOverflowHeight
+                        }
+                    )
+                }
+                AnimatedVisibility(visible = isNotesExpanded) {
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 15.sp
+                    )
+                }
+
+                // Conditionally show the "Show more/less" indicator
+                AnimatedVisibility(visible = textIsTruncated || isNotesExpanded) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isNotesExpanded) "Show less" else "Show more",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Icon(
+                            imageVector = if (isNotesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = if (isNotesExpanded) "Collapse" else "Expand",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 
 
     override fun onDestroy() {
-        super.onDestroy()
-        mediaPlayer?.apply {
-            if (isPlaying) {
-                stop()
-            }
-            release()
-        }
-        mediaPlayer = null
+        ringtone.stop()
         restoreOriginalVolume()
+        super.onDestroy()
     }
-}
-
-@Composable
-private fun getStatusColor(status: EventStatus): Color = when (status) {
-    EventStatus.PENDING -> Color(0xFFFFA726) // Orange500
-    EventStatus.SCHEDULED -> Color(0xFF66BB6A) // Green400
-    EventStatus.COMPLETED -> Color(0xFF808080) // Grey
-    EventStatus.CANCELLED -> Color(0xFFEF5350) // Red400
 }

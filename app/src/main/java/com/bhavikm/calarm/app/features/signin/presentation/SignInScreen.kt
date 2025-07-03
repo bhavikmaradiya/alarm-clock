@@ -1,6 +1,9 @@
 package com.bhavikm.calarm.app.features.signin.presentation
 
 import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +30,7 @@ import com.bhavikm.calarm.CalarmApp.Companion.isNetworkAvailable
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
+
 @Composable
 fun SignInScreen(
     viewModel: SignInViewModel = koinViewModel(),
@@ -38,11 +42,24 @@ fun SignInScreen(
     val uiEvent = viewModel.uiEvent
     val scope = rememberCoroutineScope()
 
+    val channel = NotificationChannel(
+        "calendar_updates",
+        "Calendar Updates",
+        NotificationManager.IMPORTANCE_HIGH,
+    ).apply {
+        description = "Notifications for calendar event updates"
+    }
+
+    val notificationManager =
+        activity.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    notificationManager.createNotificationChannel(channel)
+
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         viewModel.processResult(result)
     }
+
 
     LaunchedEffect(Unit) {
         uiEvent.collect {
