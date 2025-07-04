@@ -35,6 +35,7 @@ kotlinxDatetime = "0.6.2"
 spotless = "7.0.4"
 ksp = "2.1.21-2.0.1"
 firebaseBom = "33.1.2"
+material = "1.12.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -84,6 +85,7 @@ koin-androidx-workmanager = { module = "io.insert-koin:koin-androidx-workmanager
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database-ktx" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 
 
 [plugins]

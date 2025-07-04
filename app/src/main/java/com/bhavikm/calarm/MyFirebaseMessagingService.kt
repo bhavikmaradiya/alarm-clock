@@ -4,14 +4,23 @@ import android.app.NotificationManager
 import android.content.Context
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.bhavikm.calarm.app.core.data.source.network.CalendarEventsSyncWorker
+import com.bhavikm.calarm.app.core.service.AuthService
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import org.koin.android.ext.android.inject
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
+    private val authService by inject<AuthService>()
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
@@ -21,7 +30,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         Log.d(TAG, "Refreshed token: $token")
-
+        authService.updateFcmToken(token)
     }
 
 
@@ -29,13 +38,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         // Not getting messages here? See why this may be: https://goo.gl/39bRNJ
         Log.d(TAG, "From: ${remoteMessage.from}")
 
-        // Check if message contains a data payload.
-        remoteMessage.data.isNotEmpty().let {
-            Log.d(TAG, "Message data payload: " + remoteMessage.data)
-
+        val action = remoteMessage.data["action"]
+        if (action == "calendar_updates") {
+            enqueueCalendarSync()
         }
 
-        // Check if message contains a notification payload.
         remoteMessage.notification?.let {
             Log.d(TAG, "Message Notification Body: ${it.body}")
             val notificationManager =
@@ -52,8 +59,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    fun onBackgroundMessage(remoteMessage: RemoteMessage) {
+    private fun enqueueCalendarSync() {
+        val workRequest = OneTimeWorkRequestBuilder<CalendarEventsSyncWorker>()
+            .setConstraints(
+                Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build(),
+            )
+            .build()
 
+        WorkManager.getInstance(applicationContext)
+            .enqueueUniqueWork(
+                CalendarEventsSyncWorker.Companion.WORKER_NAME,
+                ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
     }
 
 

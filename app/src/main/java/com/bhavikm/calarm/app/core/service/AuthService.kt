@@ -21,6 +21,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.database
 import kotlinx.coroutines.tasks.await
 
 interface AuthService {
@@ -29,15 +31,20 @@ interface AuthService {
 
     val isUserSignedIn: Boolean
 
+    suspend fun isUserSignedIn(): Boolean
+
     suspend fun signInWithGoogle(context: Activity): Result<FirebaseUser>
 
     /*suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent?*/
     suspend fun getGoogleSignInIntent(activity: Activity): Intent
     fun signOut()
+
+    fun updateFcmToken(token: String)
 }
 
 class FirebaseAuthService(private val context: Context) : AuthService {
     private val auth: FirebaseAuth = Firebase.auth
+    private val database: FirebaseDatabase = Firebase.database
     override val currentUser: FirebaseUser? get() = auth.currentUser
     override val googleSignInUser: Account?
         get() = GoogleSignIn.getLastSignedInAccount(context)?.account
@@ -53,6 +60,20 @@ class FirebaseAuthService(private val context: Context) : AuthService {
         }
     }
 
+    override suspend fun isUserSignedIn(): Boolean {
+        return isUserSignedIn /*&& isRefreshTokenAvailable()*/
+    }
+
+    private suspend fun isRefreshTokenAvailable(): Boolean {
+        val userData =
+            database.reference.child("users").child(currentUser!!.uid).get()
+                .await()
+        if (userData.exists()) {
+            return userData.child("refreshToken").exists()
+        }
+        return false
+    }
+
     override suspend fun getGoogleSignInIntent(activity: Activity): Intent {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
@@ -64,6 +85,15 @@ class FirebaseAuthService(private val context: Context) : AuthService {
             )
             .build()
         return GoogleSignIn.getClient(activity, gso).signInIntent
+    }
+
+    override fun updateFcmToken(token: String) {
+        val user = currentUser ?: return
+        database.reference
+            .child("users")
+            .child(user.uid)
+            .child("fcmToken")
+            .setValue(token)
     }
 
     /*override suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent? =

@@ -1,9 +1,6 @@
 package com.bhavikm.calarm.app.features.signin.presentation
 
 import android.app.Activity
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,7 +39,7 @@ fun SignInScreen(
     val uiEvent = viewModel.uiEvent
     val scope = rememberCoroutineScope()
 
-    val channel = NotificationChannel(
+    /*val channel = NotificationChannel(
         "calendar_updates",
         "Calendar Updates",
         NotificationManager.IMPORTANCE_HIGH,
@@ -52,7 +49,7 @@ fun SignInScreen(
 
     val notificationManager =
         activity.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    notificationManager.createNotificationChannel(channel)
+    notificationManager.createNotificationChannel(channel)*/
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
@@ -91,11 +88,13 @@ fun SignInScreen(
         signInState = state,
         snackBarHostState = snackBarHostState,
         onSignInClick = {
-            if (isNetworkAvailable(activity)) {
-                viewModel.signIn(activity)
-            } else {
-                scope.launch {
-                    snackBarHostState.showSnackbar("Please check your internet connection")
+            scope.launch {
+                if (isNetworkAvailable(activity)) {
+                    viewModel.signIn(activity)
+                } else {
+                    scope.launch {
+                        snackBarHostState.showSnackbar("Please check your internet connection")
+                    }
                 }
             }
         },

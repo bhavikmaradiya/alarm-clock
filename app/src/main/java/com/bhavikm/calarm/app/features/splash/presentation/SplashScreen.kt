@@ -16,14 +16,19 @@ fun SplashScreen(
     viewModel: SplashViewModel = koinViewModel(),
     onAuthCheck: (isAuthenticated: Boolean) -> Unit,
 ) {
-    val isAuthenticated = viewModel.isUserLoggedIn()
     val currentOnAuthCheck by rememberUpdatedState(onAuthCheck)
-
+    val event = viewModel.uiEvent
     LaunchedEffect(Unit) {
-        if (isAuthenticated) {
-            currentOnAuthCheck(true)
-        } else {
-            currentOnAuthCheck(false)
+        event.collect {
+            when (it) {
+                is SplashEvent.NavigateToHome   -> {
+                    currentOnAuthCheck(true)
+                }
+
+                is SplashEvent.NavigateToSignIn -> {
+                    currentOnAuthCheck(false)
+                }
+            }
         }
     }
 

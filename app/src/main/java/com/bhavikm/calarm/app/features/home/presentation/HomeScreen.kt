@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.icu.util.Calendar
 import android.provider.Settings
+import android.text.TextUtils
+import android.text.method.LinkMovementMethod
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,17 +60,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bhavikm.calarm.CalarmApp.Companion.isNetworkAvailable
 import com.bhavikm.calarm.app.core.model.AttendeeData
 import com.bhavikm.calarm.app.core.model.CalendarEvent
-import com.bhavikm.calarm.app.core.model.EventStatus
+import com.google.android.material.textview.MaterialTextView
 import com.meticha.triggerx.permission.PermissionState
 import com.meticha.triggerx.permission.rememberAppPermissionState
 import kotlinx.coroutines.launch
@@ -91,6 +94,9 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     LaunchedEffect(Unit) {
+        /*if (!isNotificationListenerEnabled(context)) {
+            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        }*/
         if (!notificationManager.isNotificationPolicyAccessGranted
         ) {
             val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
@@ -124,6 +130,16 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
             viewModel.getCalendar(context)
         },
     )
+}
+
+fun isNotificationListenerEnabled(context: Context): Boolean {
+    val packageName = context.packageName
+    val enabledListeners = Settings.Secure.getString(
+        context.contentResolver,
+        "enabled_notification_listeners"
+    ) ?: return false
+
+    return enabledListeners.split(":").any { it.contains(packageName) }
 }
 
 @Composable
@@ -531,76 +547,24 @@ fun EventItem(
                         )
                         event.notes?.let { notes ->
                             if (notes.isNotBlank()) {
-                                var isNotesExpanded by rememberSaveable { mutableStateOf(false) }
-                                var textIsTruncated by remember { mutableStateOf(false) }
                                 val collapsedMaxLines = 5
-                                val interactionSource = remember { MutableInteractionSource() }
+                                remember { MutableInteractionSource() }
 
                                 Spacer(modifier = Modifier.height(17.dp))
-                                Column(
-                                    // Make the whole notes section clickable to toggle expansion
-                                    modifier = Modifier.clickable(
-                                        interactionSource = interactionSource,
-                                        indication = null
-                                    ) {
 
-                                        // Only toggle if there's actually more to show or if it's already expanded
-                                        if (textIsTruncated || isNotesExpanded) {
-                                            isNotesExpanded = !isNotesExpanded
-                                        }
-                                    }
-                                ) {
-                                    Text(
-                                        text = "Notes",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 16.sp,
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Notes",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 16.sp,
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
 
-                                    AnimatedVisibility(visible = !isNotesExpanded) {
-                                        Text(
-                                            text = notes,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontSize = 14.sp,
-                                            maxLines = collapsedMaxLines,
-                                            overflow = TextOverflow.Ellipsis,
-                                            onTextLayout = { textLayoutResult ->
-                                                textIsTruncated = textLayoutResult.didOverflowHeight
-                                            }
-                                        )
-                                    }
-                                    AnimatedVisibility(visible = isNotesExpanded) {
-                                        Text(
-                                            text = notes,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontSize = 14.sp
-                                        )
-                                    }
-
-                                    // Conditionally show the "Show more/less" indicator
-                                    AnimatedVisibility(visible = textIsTruncated || isNotesExpanded) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.End,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = if (isNotesExpanded) "Show less" else "Show more",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(end = 4.dp)
-                                            )
-                                            Icon(
-                                                imageVector = if (isNotesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                                                contentDescription = if (isNotesExpanded) "Collapse notes" else "Expand notes",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                }
+                                ExpandableHtmlText(
+                                    notes,
+                                    collapsedMaxLines = collapsedMaxLines,
+                                )
                             }
                         }
 
@@ -696,9 +660,68 @@ fun EventItem(
 }
 
 @Composable
-private fun getStatusColor(status: EventStatus): Color = when (status) {
-    EventStatus.PENDING   -> MaterialTheme.colorScheme.secondaryContainer
-    EventStatus.SCHEDULED -> MaterialTheme.colorScheme.primaryContainer
-    EventStatus.COMPLETED -> MaterialTheme.colorScheme.tertiaryContainer
-    EventStatus.CANCELLED -> MaterialTheme.colorScheme.errorContainer
+fun ExpandableHtmlText(
+    htmlText: String,
+    collapsedMaxLines: Int = 3,
+) {
+    remember { MutableInteractionSource() }
+    var isExpanded by remember { mutableStateOf(false) }
+    var isTruncated by remember { mutableStateOf(false) }
+
+    Column {
+        AndroidView(
+            modifier = Modifier
+                .fillMaxWidth(),
+            factory = { context ->
+                MaterialTextView(context).apply {
+                    setTextColor(android.graphics.Color.BLACK)
+                    movementMethod = LinkMovementMethod.getInstance()
+                    ellipsize = TextUtils.TruncateAt.END
+                    text = HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                    maxLines = if (isExpanded) Int.MAX_VALUE else collapsedMaxLines
+
+                    post {
+                        val layout = layout ?: return@post
+                        val didOverflow = layout.lineCount > collapsedMaxLines
+                        if (didOverflow != isTruncated) {
+                            isTruncated = didOverflow
+                        }
+                    }
+                }
+            },
+            update = {
+                it.text = HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                it.maxLines = if (isExpanded) Int.MAX_VALUE else collapsedMaxLines
+                it.setOnClickListener {
+                    if (isTruncated || isExpanded) {
+                        isExpanded = !isExpanded
+                    }
+                }
+            }
+        )
+
+        AnimatedVisibility(visible = isTruncated || isExpanded) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+                    .clickable { isExpanded = !isExpanded },
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isExpanded) "Show less" else "Show more",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+                Icon(
+                    imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
 }

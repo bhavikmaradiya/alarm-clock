@@ -47,13 +47,14 @@ class SignInRepositoryImpl(
                 val account = task.getResult(ApiException::class.java)
                 val authCode = account.serverAuthCode
                 if (authCode != null) {
-                    val userId = authService.currentUser?.uid.orEmpty()
-                    Log.d("AUTH_CODE", "Received: $authCode")
-                    /*val fcmToken = getFcmToken()
-                    FirebaseDatabase.getInstance().getReference("users").child(userId)
-                        .child("fcmToken").setValue(fcmToken)
-                    // 🔁 Send this authCode to your backend to exchange for access/refresh tokens
-                    subscribeToCalendarWithAuthCode(authCode, userId)*/
+//                    val userId = authService.currentUser?.uid.orEmpty()
+//                    Log.d("AUTH_CODE", "Received: $authCode")
+//                    val fcmToken = getFcmToken()
+//                    if (fcmToken != null) {
+//                        authService.updateFcmToken(fcmToken)
+//                    }
+//                    // 🔁 Subscribe to calendar events
+//                    subscribeToCalendarWithAuthCode(authCode, userId)
                 } else {
                     Log.e("AUTH_CODE", "Auth code is null")
                 }

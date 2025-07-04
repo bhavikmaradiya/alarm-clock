@@ -11,12 +11,16 @@ import com.bhavikm.calarm.app.core.di.appModule
 import com.bhavikm.calarm.app.core.model.CalendarEventBundleConverter.toBundle
 import com.meticha.triggerx.dsl.TriggerX
 import com.meticha.triggerx.provider.TriggerXDataProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.context.startKoin
+import java.net.HttpURLConnection
+import java.net.URL
 
 class CalarmApp :
     Application(),
@@ -25,18 +29,40 @@ class CalarmApp :
     companion object Companion {
         private const val TAG = "App"
 
-        fun isNetworkAvailable(context: Context): Boolean {
+        suspend fun isNetworkAvailable(context: Context): Boolean {
             val connectivityManager =
-                context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
             val network = connectivityManager.activeNetwork ?: return false
             val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
-            return when {
+
+            val hasNetwork = when {
                 activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)     -> true
                 activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
                 activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
                 else                                                               -> false
             }
+
+            if (!hasNetwork) return false
+
+            return isInternetAvailable()
         }
+
+        suspend fun isInternetAvailable(): Boolean {
+            return withContext(Dispatchers.IO) {
+                return@withContext try {
+                    val url =
+                        URL("https://www.google.com/generate_204")
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.connectTimeout = 2000
+                    connection.readTimeout = 2000
+                    connection.connect()
+                    connection.responseCode == 204
+                } catch (e: Exception) {
+                    false
+                }
+            }
+        }
+
     }
 
     override fun onCreate() {

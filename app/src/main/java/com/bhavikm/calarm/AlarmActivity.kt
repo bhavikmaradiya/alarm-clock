@@ -6,6 +6,8 @@ import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Bundle
+import android.text.TextUtils
+import android.text.method.LinkMovementMethod
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,8 +55,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.text.HtmlCompat
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.model.CalendarEventBundleConverter.toCalendarEvent
+import com.google.android.material.textview.MaterialTextView
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
@@ -228,7 +233,12 @@ class AlarmActivity : TriggerXActivity() {
                                 label = "Notes",
                                 value = notes,
                                 modifier = Modifier.weight(1f)
-                            )
+                            ) {
+                                ExpandableHtmlText(
+                                    notes,
+                                    collapsedMaxLines = 5,
+                                )
+                            }
                         }
                     }
 
@@ -303,11 +313,78 @@ class AlarmActivity : TriggerXActivity() {
     }
 
     @Composable
+    fun ExpandableHtmlText(
+        htmlText: String,
+        collapsedMaxLines: Int = 3,
+    ) {
+        var isExpanded by remember { mutableStateOf(false) }
+        var isTruncated by remember { mutableStateOf(false) }
+
+        Column {
+            AndroidView(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                factory = { context ->
+                    MaterialTextView(context).apply {
+                        setTextColor(android.graphics.Color.BLACK)
+                        movementMethod = LinkMovementMethod.getInstance()
+                        ellipsize = TextUtils.TruncateAt.END
+                        text = HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                        maxLines = if (isExpanded) Int.MAX_VALUE else collapsedMaxLines
+
+                        post {
+                            val layout = layout ?: return@post
+                            val didOverflow = layout.lineCount > collapsedMaxLines
+                            if (didOverflow != isTruncated) {
+                                isTruncated = didOverflow
+                            }
+                        }
+                    }
+                },
+                update = {
+                    it.text = HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                    it.maxLines = if (isExpanded) Int.MAX_VALUE else collapsedMaxLines
+                    it.setOnClickListener {
+                        if (isTruncated || isExpanded) {
+                            isExpanded = !isExpanded
+                        }
+                    }
+                }
+            )
+
+            AnimatedVisibility(visible = isTruncated || isExpanded) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .clickable { isExpanded = !isExpanded },
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isExpanded) "Show less" else "Show more",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
     private fun EventDetailItem(
         iconVector: ImageVector,
         label: String,
         value: String,
         modifier: Modifier = Modifier,
+        content: @Composable (() -> Unit)? = null,
     ) {
         var isNotesExpanded by rememberSaveable { mutableStateOf(false) }
         var textIsTruncated by remember { mutableStateOf(false) }
@@ -331,7 +408,7 @@ class AlarmActivity : TriggerXActivity() {
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Column(
+            content?.invoke() ?: Column(
                 // Make the whole notes section clickable to toggle expansion
                 modifier = Modifier.clickable(
                     interactionSource = interactionSource,
