@@ -38,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
@@ -49,6 +50,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -101,6 +103,13 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
     val snackBarHostState = remember { SnackbarHostState() }
     val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    var isNotificationListenerDialogVisible by remember {
+        mutableStateOf(
+            !isNotificationListenerEnabled(
+                context
+            )
+        )
+    }
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
@@ -108,9 +117,6 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
 
 
     LaunchedEffect(Unit) {
-        /*if (!isNotificationListenerEnabled(context)) {
-            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-        }*/
         if (!notificationManager.isNotificationPolicyAccessGranted
         ) {
             val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
@@ -132,6 +138,13 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
             }
         }
     }
+
+    NotificationAccessDialog(
+        showDialog = isNotificationListenerDialogVisible,
+        onDismiss = {
+            isNotificationListenerDialogVisible = false
+        }
+    )
 
     LaunchedEffect(key1 = Unit) {
         if (permissionState.allRequiredGranted()) {
@@ -286,6 +299,45 @@ private fun rememberAvatarBackgroundColor(name: String): Color {
     )
     return themeColors[abs(name.hashCode()) % themeColors.size]
 }
+
+@Composable
+fun NotificationAccessDialog(
+    showDialog: Boolean,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text("Calendar Updates")
+            },
+            text = {
+                Text(
+                    "Want to stay updated even when you're busy or on the move? \n\n" +
+                    "Allow notification access so we can sync your calendar updates even when you're on hustle."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val context = context
+                    val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                    onDismiss()
+                }) {
+                    Text("Allow Access")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Maybe Later")
+                }
+            }
+        )
+    }
+}
+
 
 @Composable
 private fun StackedAttendeesAvatars(

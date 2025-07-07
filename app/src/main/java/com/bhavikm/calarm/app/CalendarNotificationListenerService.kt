@@ -34,6 +34,9 @@ class CalendarNotificationListenerService : NotificationListenerService() {
         val channelId = notification.channelId
 
         if (sbn.packageName == applicationContext.packageName && (title == "Calendar updated" || channelId == "calendar_updates")) {
+            /* val notificationManager =
+                 getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+             notificationManager.cancel(sbn.id)*/
             enqueueCalendarSync()
         }
     }

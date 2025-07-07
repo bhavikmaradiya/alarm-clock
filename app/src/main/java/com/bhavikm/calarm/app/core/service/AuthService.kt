@@ -72,8 +72,8 @@ class FirebaseAuthService(
         if (currentUser != null) {
             auth.signOut()
         }
-        googleSignInClient?.signOut()
-        googleSignInClient = null
+        /*googleSignInClient?.signOut()
+        googleSignInClient = null*/
     }
 
     override suspend fun isUserSignedIn(): Boolean {
@@ -83,7 +83,7 @@ class FirebaseAuthService(
     private suspend fun removeRefreshToken() {
         val user = currentUser ?: return
         val settings = settingsService.getSettings(user.uid).first()
-        settingsService.upsertSettings(settings)
+        settingsService.upsertSettings(settings.copy(sessionId = null))
         /*try {
             database.reference
                 .child("users")
@@ -145,6 +145,7 @@ class FirebaseAuthService(
 
     override suspend fun updateFcmToken(token: String?) {
         val user = currentUser ?: return
+        Log.d("FirebaseAuthRepository", "updateFcmToken: $token for ${user.email}")
         try {
             database.reference
                 .child("users")

@@ -50,9 +50,10 @@ class SignInRepositoryImpl(
                 val account = task.getResult(ApiException::class.java)
                 val authCode = account.serverAuthCode
                 if (idToken != null && authCode != null) {
-                    // 🔁 Subscribe to calendar events and save refrshToken for identifying unique session
+                    // 🔁 Subscribe to calendar events and save refreshToken for identifying unique session
 //                    authService.subscribeToCalendarWithAuthCode(authCode)
 //                        .onSuccess { sessionId ->
+                    authService.signOut()
                     authService.firebaseAuthWithGoogle(idToken = idToken!!)
                         .onSuccess {
                             val defaultSettings =
