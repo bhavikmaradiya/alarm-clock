@@ -4,12 +4,17 @@ import android.accounts.Account
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.credentials.Credential
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import com.bhavikm.calarm.BuildConfig
+import com.bhavikm.calarm.app.core.data.source.local.AppSettingsDao
+import com.bhavikm.calarm.app.data.network.ApiClient
+import com.bhavikm.calarm.app.data.network.model.AuthCodeRequest
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -23,6 +28,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.database
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 
 interface AuthService {
@@ -33,17 +39,23 @@ interface AuthService {
 
     suspend fun isUserSignedIn(): Boolean
 
-    suspend fun signInWithGoogle(context: Activity): Result<FirebaseUser>
+    suspend fun signInWithGoogle(activity: Activity): Result<String>
 
     /*suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent?*/
     suspend fun getGoogleSignInIntent(activity: Activity): Intent
-    fun signOut()
+    suspend fun signOut()
 
-    fun updateFcmToken(token: String)
+    suspend fun updateFcmToken(token: String? = null)
+    suspend fun firebaseAuthWithGoogle(idToken: String): Result<FirebaseUser>
+    suspend fun subscribeToCalendarWithAuthCode(authCode: String): Result<String>
 }
 
-class FirebaseAuthService(private val context: Context) : AuthService {
+class FirebaseAuthService(
+    private val context: Context,
+    private val settingsService: AppSettingsDao,
+) : AuthService {
     private val auth: FirebaseAuth = Firebase.auth
+    private var googleSignInClient: GoogleSignInClient? = null
     private val database: FirebaseDatabase = Firebase.database
     override val currentUser: FirebaseUser? get() = auth.currentUser
     override val googleSignInUser: Account?
@@ -51,30 +63,73 @@ class FirebaseAuthService(private val context: Context) : AuthService {
     override val isUserSignedIn: Boolean
         get() = currentUser != null && googleSignInUser != null
 
-    override suspend fun signInWithGoogle(context: Activity): Result<FirebaseUser> =
-        getCredentials(context)
+    override suspend fun signInWithGoogle(activity: Activity): Result<String> =
+        getCredentials(activity)
 
-    override fun signOut() {
+    override suspend fun signOut() {
+        updateFcmToken()
+        removeRefreshToken()
         if (currentUser != null) {
             auth.signOut()
         }
+        googleSignInClient?.signOut()
+        googleSignInClient = null
     }
 
     override suspend fun isUserSignedIn(): Boolean {
         return isUserSignedIn /*&& isRefreshTokenAvailable()*/
     }
 
-    private suspend fun isRefreshTokenAvailable(): Boolean {
-        val userData =
-            database.reference.child("users").child(currentUser!!.uid).get()
+    private suspend fun removeRefreshToken() {
+        val user = currentUser ?: return
+        val settings = settingsService.getSettings(user.uid).first()
+        settingsService.upsertSettings(settings)
+        /*try {
+            database.reference
+                .child("users")
+                .child(user.uid)
+                .child("refreshToken")
+                .removeValue()
                 .await()
-        if (userData.exists()) {
-            return userData.child("refreshToken").exists()
+        } catch (e: Exception) {
+            Log.e("FirebaseAuthRepository", "removeRefreshToken: ", e)
+        }*/
+    }
+
+    private suspend fun isRefreshTokenAvailable(): Boolean {
+        val user = currentUser ?: return false
+        val settings = settingsService.getSettings(user.uid).first()
+        val localRefreshToken = settings.sessionId
+        if (localRefreshToken.isNullOrEmpty()) return false
+
+        val userData =
+            try {
+                database.reference
+                    .child("users")
+                    .child(user.uid)
+                    .get()
+                    .await()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        if (userData?.exists() == true) {
+            val refreshTokenChild = userData.child("refreshToken")
+            if (!refreshTokenChild.exists()) {
+                val refreshToken = refreshTokenChild
+                    .value as String?
+                if (refreshToken.isNullOrEmpty()) return false
+                return localRefreshToken.compareTo(
+                    refreshToken,
+                    ignoreCase = false
+                ) == 0
+            }
         }
         return false
     }
 
     override suspend fun getGoogleSignInIntent(activity: Activity): Intent {
+        if (googleSignInClient != null) return googleSignInClient!!.signInIntent
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
             .requestProfile()
@@ -84,16 +139,23 @@ class FirebaseAuthService(private val context: Context) : AuthService {
                 true,
             )
             .build()
-        return GoogleSignIn.getClient(activity, gso).signInIntent
+        googleSignInClient = GoogleSignIn.getClient(activity, gso)
+        return googleSignInClient!!.signInIntent
     }
 
-    override fun updateFcmToken(token: String) {
+    override suspend fun updateFcmToken(token: String?) {
         val user = currentUser ?: return
-        database.reference
-            .child("users")
-            .child(user.uid)
-            .child("fcmToken")
-            .setValue(token)
+        try {
+            database.reference
+                .child("users")
+                .child(user.uid)
+                .child("fcmToken")
+                .setValue(token)
+                .await()
+        } catch (e: Exception) {
+            Log.e("FirebaseAuthRepository", "updateFcmToken: ", e)
+        }
+
     }
 
     /*override suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent? =
@@ -119,7 +181,7 @@ class FirebaseAuthService(private val context: Context) : AuthService {
                 }
         }*/
 
-    private suspend fun getCredentials(context: Activity): Result<FirebaseUser> {
+    private suspend fun getCredentials(activity: Activity): Result<String> {
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setAutoSelectEnabled(false)
@@ -130,31 +192,33 @@ class FirebaseAuthService(private val context: Context) : AuthService {
             .addCredentialOption(googleIdOption)
             .build()
 
-        val credentialManager = CredentialManager.create(context)
+        val credentialManager = CredentialManager.create(activity)
 
         return try {
-            val credentialResponse = credentialManager.getCredential(context, request)
+            val credentialResponse = credentialManager.getCredential(activity, request)
             handleSignIn(credentialResponse.credential)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    private suspend fun handleSignIn(credential: Credential): Result<FirebaseUser> =
+    private fun handleSignIn(credential: Credential): Result<String> =
         try {
             when (credential) {
                 is GoogleIdTokenCredential -> {
                     val idToken = credential.idToken
-                    firebaseAuthWithGoogle(idToken)
+                    Result.success(idToken)
+//                    firebaseAuthWithGoogle(idToken)
                 }
 
                 is CustomCredential        -> {
                     if (credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                         val googleIdTokenCredential =
                             GoogleIdTokenCredential.createFrom(credential.data)
-                        firebaseAuthWithGoogle(
+                        Result.success(googleIdTokenCredential.idToken)
+                        /*firebaseAuthWithGoogle(
                             googleIdTokenCredential.idToken
-                        )
+                        )*/
                     } else {
                         Result.failure(Exception("Not a Google ID Token. CustomCredential with type: ${credential.type}"))
                     }
@@ -168,7 +232,7 @@ class FirebaseAuthService(private val context: Context) : AuthService {
             Result.failure(e)
         }
 
-    private suspend fun firebaseAuthWithGoogle(idToken: String): Result<FirebaseUser> =
+    override suspend fun firebaseAuthWithGoogle(idToken: String): Result<FirebaseUser> =
         try {
             val authCredential = GoogleAuthProvider.getCredential(idToken, null)
             val authResult = auth.signInWithCredential(authCredential).await()
@@ -179,4 +243,28 @@ class FirebaseAuthService(private val context: Context) : AuthService {
         } catch (e: Exception) {
             Result.failure(e)
         }
+
+    override suspend fun subscribeToCalendarWithAuthCode(authCode: String): Result<String> {
+        val userId =
+            auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
+        try {
+            val requestBody =
+                AuthCodeRequest(authCode = authCode, userId = userId)
+            val response = ApiClient.apiService
+                .subscribeToCalendarChanges(
+                    request = requestBody
+                )
+
+            val sessionId = response.body()?.sessionId
+            Log.d("Calendar Subscription", "Session ID: $sessionId")
+
+            if (response.isSuccessful && !sessionId.isNullOrBlank()) {
+                return Result.success(value = sessionId)
+            }
+            return Result.failure(exception = Exception(response.message()))
+        } catch (e: Exception) {
+            println("Exception during API call: ${e.message}")
+            return Result.failure(e)
+        }
+    }
 }

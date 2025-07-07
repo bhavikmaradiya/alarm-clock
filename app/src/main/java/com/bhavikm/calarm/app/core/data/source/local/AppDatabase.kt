@@ -10,7 +10,7 @@ import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.model.EventStatus
 import kotlinx.serialization.json.Json
 
-@Database(entities = [CalendarEvent::class, AppSettings::class], version = 2, exportSchema = false)
+@Database(entities = [CalendarEvent::class, AppSettings::class], version = 3, exportSchema = false)
 @TypeConverters(EventStatusConverter::class, AttendeeListConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun calendarEventDao(): CalendarEventDao

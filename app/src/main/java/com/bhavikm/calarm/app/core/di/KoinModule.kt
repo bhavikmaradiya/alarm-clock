@@ -38,14 +38,19 @@ val appModule = module {
             analyticsService = Firebase.analytics,
         )
     }
+
+    single<CalendarEventDao> { get<AppDatabase>().calendarEventDao() }
+    single<AppSettingsDao> { get<AppDatabase>().appSettingsDao() }
+
     single<AuthService> {
-        FirebaseAuthService(androidContext())
+        FirebaseAuthService(
+            androidContext(),
+            settingsService = get()
+        )
     }
     single<WorkScheduler> {
         WorkScheduler(context = androidContext(), authService = get<AuthService>())
     }
-    single<CalendarEventDao> { get<AppDatabase>().calendarEventDao() }
-    single<AppSettingsDao> { get<AppDatabase>().appSettingsDao() }
     single<TriggerXAlarmScheduler> { TriggerXAlarmScheduler() }
     single<SettingsRepository> {
         SettingsRepository(settingsDao = get<AppSettingsDao>(), authService = get<AuthService>())
@@ -65,5 +70,5 @@ val appModule = module {
         )
     }
 
-    includes(homeModule, authModule)
+    includes(authModule, homeModule)
 }

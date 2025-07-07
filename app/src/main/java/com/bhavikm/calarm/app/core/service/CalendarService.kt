@@ -1,5 +1,6 @@
 package com.bhavikm.calarm.app.core.service
 
+import android.accounts.Account
 import android.content.Context
 import android.util.Log
 import com.bhavikm.calarm.R
@@ -40,29 +41,46 @@ class GoogleCalendarService(
     private val authService: AuthService,
 ) : CalendarService {
 
-    private val calendarService: Calendar
+    private var _calendarService: Calendar? = null
+    private var lastUsedAccount: Account? = null
+
+    val calendarService: Calendar
+        get() {
+            val currentAccount = authService.googleSignInUser
+
+            if (_calendarService == null ||
+                currentAccount != lastUsedAccount ||
+                currentAccount?.name?.compareTo(
+                    lastUsedAccount?.name ?: "",
+                    ignoreCase = true
+                ) != 0
+            ) {
+                lastUsedAccount = currentAccount
+
+                val credential = GoogleAccountCredential.usingOAuth2(
+                    context,
+                    listOf(CalendarScopes.CALENDAR_READONLY)
+                ).setBackOff(ExponentialBackOff())
+                credential.selectedAccount = currentAccount
+
+                _calendarService = Calendar.Builder(
+                    NetHttpTransport(),
+                    JacksonFactory.getDefaultInstance(),
+                    credential
+                ).setApplicationName(context.getString(R.string.app_name)).build()
+            }
+
+            return _calendarService!!
+        }
 
     companion object {
         val TAG = GoogleCalendarService::class.simpleName
     }
 
-    init {
-        val mCredential = GoogleAccountCredential.usingOAuth2(
-            context,
-            arrayListOf(CalendarScopes.CALENDAR_READONLY),
-        )
-            .setBackOff(ExponentialBackOff())
-        mCredential.selectedAccount =
-            authService.googleSignInUser
-        val transport = NetHttpTransport()
-        val jsonFactory = JacksonFactory.getDefaultInstance()
-        calendarService = Calendar.Builder(transport, jsonFactory, mCredential)
-            .setApplicationName(context.getString(R.string.app_name))
-            .build()
-    }
 
     override suspend fun getCalendarEvents(): Result<List<CalendarEvent>> =
         withContext(Dispatchers.IO) {
+
             try {
                 val settings =
                     settingsRepository.getSettings().first()
@@ -145,7 +163,7 @@ class GoogleCalendarService(
                                            ?: false,
                                 responseStatus = AttendeeResponseStatus.fromString(
                                     googleAttendee.responseStatus,
-                                ), // Uses your enum's fromString method
+                                ),
                                 comment = googleAttendee.comment,
                                 additionalGuests = googleAttendee.additionalGuests,
                             )

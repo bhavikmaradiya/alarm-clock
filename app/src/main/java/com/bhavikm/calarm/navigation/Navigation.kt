@@ -58,7 +58,9 @@ fun Navigation() {
                 }
             }
             entry<Routes.HomeRoute> {
-                HomeScreen()
+                HomeScreen() {
+                    backStack.replaceAll { Routes.SignInRoute }
+                }
             }
             entry<Routes.SettingsRoute> {
                 SettingsScreen()

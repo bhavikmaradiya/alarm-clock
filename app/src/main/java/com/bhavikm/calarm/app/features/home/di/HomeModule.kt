@@ -19,7 +19,8 @@ import org.koin.dsl.module
 val homeModule = module {
     factory<HomeRepository> {
         HomeRepositoryImpl(
-            calendarService = get<CalendarService>()
+            calendarService = get<CalendarService>(),
+            authService = get<AuthService>(),
         )
     }
 
@@ -37,10 +38,11 @@ val homeModule = module {
 
     viewModel {
         HomeViewModel(
-            repository = get<HomeRepository>(),
+            homeRepository = get<HomeRepository>(),
             settingsRepository = get<SettingsRepository>(),
             alarmScheduler = get<TriggerXAlarmScheduler>(),
             workScheduler = get<WorkScheduler>(),
+            signInRepository = get(),
         )
     }
 }

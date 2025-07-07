@@ -10,4 +10,5 @@ data class AppSettings(
     val lastSyncedTime: Long? = null, // Timestamp of the last successful sync
     val defaultDelayBeforeTriggerMinutes: Int = 1, // Default delay in minutes
     val defaultDaysToSyncFromNow: Int = 1, // Default number of days to sync from now
+    val sessionId: String? = null, // Current session ID
 )

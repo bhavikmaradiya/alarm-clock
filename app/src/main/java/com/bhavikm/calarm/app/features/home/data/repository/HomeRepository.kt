@@ -1,6 +1,7 @@
 package com.bhavikm.calarm.app.features.home.data.repository
 
 import com.bhavikm.calarm.app.core.model.CalendarEvent
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.Flow
 
 interface HomeRepository {
@@ -20,4 +21,5 @@ interface HomeRepository {
      * @return A Flow emitting a list of [CalendarEvent].
      */
     fun getLocalCalendarEvents(): Flow<List<CalendarEvent>>
+    fun getUserData(): FirebaseUser?
 }

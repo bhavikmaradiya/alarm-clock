@@ -1,5 +1,6 @@
 package com.bhavikm.calarm.app.features.home.presentation
 
+import android.app.Activity
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -7,10 +8,14 @@ import android.icu.util.Calendar
 import android.provider.Settings
 import android.text.TextUtils
 import android.text.method.LinkMovementMethod
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +43,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -57,6 +63,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,6 +76,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.core.text.HtmlCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.bhavikm.calarm.CalarmApp.Companion.isNetworkAvailable
 import com.bhavikm.calarm.app.core.model.AttendeeData
 import com.bhavikm.calarm.app.core.model.CalendarEvent
@@ -84,14 +93,19 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
-    val context = LocalContext.current
+fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit) {
+    val context = LocalActivity.current as Activity
     val state by viewModel.state.collectAsStateWithLifecycle()
     val uiEvent = viewModel.uiEvent
     val permissionState = rememberAppPermissionState()
     val snackBarHostState = remember { SnackbarHostState() }
     val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+    val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result -> viewModel.processResult(context, result) }
+
 
     LaunchedEffect(Unit) {
         /*if (!isNotificationListenerEnabled(context)) {
@@ -104,13 +118,17 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
             snackBarHostState.showSnackbar("Please grant sound access for Calarm to work properly.")
         }
 
-        uiEvent.collect { event ->
-            when (event) {
-                is HomeUIEvent.ScheduledEvent -> {
+        uiEvent.collect {
+            when (val event = it) {
+                is HomeUIEvent.ScheduledEvent          -> {
                     snackBarHostState.showSnackbar("Event scheduled successfully!")
                 }
 
-                else                          -> {}
+                is HomeUIEvent.OnSignInIntentGenerated -> {
+                    googleCalendarScopeLauncher.launch(event.intent)
+                }
+
+                else                                   -> {}
             }
         }
     }
@@ -129,6 +147,9 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel()) {
         onSyncClick = {
             viewModel.getCalendar(context)
         },
+        onSwitchAccountClick = {
+            viewModel.switchAccount(context)
+        }
     )
 }
 
@@ -191,7 +212,10 @@ fun Body(
         Box(modifier = Modifier.fillMaxSize()) {
             when (homeSate.status) {
                 HomeStatus.LOADING -> {
-                    Text(modifier = Modifier.align(Alignment.Center), text = "Loading")
+                    LoadingIndicator(
+                        modifier = Modifier.align(alignment = Alignment.Center),
+                        color = Color.Gray,
+                    )
                 }
 
                 HomeStatus.LOADED  -> {
@@ -296,7 +320,10 @@ private fun StackedAttendeesAvatars(
                 modifier = Modifier
                     .padding(start = (maxVisible * avatarSize * (1 - overlapFactor)))
                     .size(avatarSize)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), CircleShape)
+                    .background(
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        CircleShape
+                    )
                     .clip(CircleShape)
                     .zIndex(0f), // Ensure it's behind the last visible avatar if needed, or drawn last
                 contentAlignment = Alignment.Center
@@ -374,56 +401,87 @@ private fun HomeComposable(
     permissionState: PermissionState,
     snackBarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onSyncClick: () -> Unit = {},
+    onSwitchAccountClick: () -> Unit = {},
 ) {
+    val isLoading = homeSate.status == HomeStatus.LOADING
     val scope = rememberCoroutineScope()
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackBarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text("Events") },
-                colors = TopAppBarDefaults.topAppBarColors().copy(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
-                actions = {
-                    FilledTonalIconButton(
-                        content = {
-                            Icon(
-                                imageVector = Icons.Default.Sync,
-                                contentDescription = "Sync",
-                            )
-                        },
-                        onClick = {
-                            scope.launch {
-                                if (permissionState.allRequiredGranted() && isNetworkAvailable(
-                                        context
-                                    )
-                                ) {
-                                    onSyncClick.invoke()
-                                } else if (!permissionState.allRequiredGranted()) {
-                                    permissionState.requestPermission()
-                                } else {
-                                    snackBarHostState.showSnackbar("Please check your internet connection")
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            snackbarHost = { SnackbarHost(snackBarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = { Text("Events") },
+                    colors = TopAppBarDefaults.topAppBarColors().copy(
+                        containerColor = MaterialTheme.colorScheme.background
+                    ),
+                    actions = {
+                        FilledTonalIconButton(
+                            content = {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = "Sync",
+                                )
+                            },
+                            onClick = {
+                                scope.launch {
+                                    if (permissionState.allRequiredGranted() && isNetworkAvailable(
+                                            context
+                                        )
+                                    ) {
+                                        onSyncClick.invoke()
+                                    } else if (!permissionState.allRequiredGranted()) {
+                                        permissionState.requestPermission()
+                                    } else {
+                                        snackBarHostState.showSnackbar("Please check your internet connection")
+                                    }
                                 }
-                            }
-                        },
-                        colors = IconButtonDefaults.filledTonalIconButtonColors()
-                            .copy(containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.padding(end = 16.dp)
-                    )
-                }
+                            },
+                            colors = IconButtonDefaults.filledTonalIconButtonColors()
+                                .copy(containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(end = 10.dp)
+                        )
+                        AsyncImage(
+                            model = homeSate.userData?.photoUrl,
+                            contentDescription = "User Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .clip(CircleShape)
+                                .border(
+                                    5.dp,
+                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
+                                    CircleShape
+                                )
+                                .clickable(true) {
+                                    onSwitchAccountClick.invoke()
+                                },
+
+                            )
+                    }
+                )
+            },
+        ) { innerPadding ->
+            Body(
+                modifier = Modifier.padding(innerPadding),
+                homeSate = homeSate,
             )
-        },
-    ) { innerPadding ->
-        Body(
-            modifier = Modifier.padding(innerPadding),
-            homeSate = homeSate,
-        )
+        }
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures { }
+                    },
+                contentAlignment = Alignment.Center
+            ) {}
+        }
     }
 }
 
-// Simple Date Formatters (You can place these at the top of your file or in a utility object)
+
 private val timeFormatter = SimpleDateFormat("h:mm a", Locale.getDefault())
 private val dateFormatter = SimpleDateFormat(
     "EEE, MMM d, yyyy",

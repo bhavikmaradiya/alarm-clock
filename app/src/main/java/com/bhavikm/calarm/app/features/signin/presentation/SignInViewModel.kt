@@ -60,10 +60,10 @@ class SignInViewModel(private val signInRepository: SignInRepository) : ViewMode
     }
 
     fun processResult(result: ActivityResult) {
-
         viewModelScope.launch {
             signInRepository.processAuthCode(result).fold(
                 onFailure = {
+//                    signInRepository.signOut()
                     _state.update { state ->
                         state.copy(
                             status = SignInStatus.ERROR,
@@ -73,7 +73,10 @@ class SignInViewModel(private val signInRepository: SignInRepository) : ViewMode
                 },
                 onSuccess = {
                     _state.update { state ->
-                        state.copy(status = SignInStatus.SUCCESS, userData = it)
+                        state.copy(
+                            status = SignInStatus.SUCCESS,
+                            userData = it
+                        )
                     }
                 },
             )

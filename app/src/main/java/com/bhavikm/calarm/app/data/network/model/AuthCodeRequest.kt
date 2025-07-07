@@ -10,8 +10,6 @@ data class AuthCodeRequest(
 )
 
 data class SubscribeCalendarResponse(
-    @SerializedName("channelId") // Match your backend's expected field names
-    val channelId: String?,
-    @SerializedName("channelExpiration")
-    val channelExpiration: Long?,
+    @SerializedName("sessionId") // Match your backend's expected field names
+    val sessionId: String?,
 )

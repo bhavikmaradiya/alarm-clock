@@ -1,36 +1,44 @@
 package com.bhavikm.calarm.app.features.home.presentation
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import androidx.activity.result.ActivityResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bhavikm.calarm.app.core.data.repository.SettingsRepository
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.service.WorkScheduler
 import com.bhavikm.calarm.app.features.home.data.repository.HomeRepository
+import com.bhavikm.calarm.app.features.signin.domain.repository.SignInRepository
 import com.meticha.triggerx.TriggerXAlarmScheduler
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
-    private val repository: HomeRepository,
+    private val homeRepository: HomeRepository,
     private val settingsRepository: SettingsRepository,
+    private val signInRepository: SignInRepository,
     private val alarmScheduler: TriggerXAlarmScheduler,
     private val workScheduler: WorkScheduler,
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeState())
 
     val state: StateFlow<HomeState> = _state.asStateFlow()
-    private val _uiEvent = MutableSharedFlow<HomeUIEvent>()
-    val uiEvent: SharedFlow<HomeUIEvent> = _uiEvent.asSharedFlow()
+    private val _uiEvent = Channel<HomeUIEvent>()
+    val uiEvent = _uiEvent.receiveAsFlow()
+
+    init {
+        notifyUserInfo()
+    }
 
     /*init {
         viewModelScope.launch {
@@ -54,7 +62,7 @@ class HomeViewModel(
                     status = HomeStatus.LOADING,
                 )
             }
-            repository.getCalendarEventsFromGoogle().fold(
+            homeRepository.getCalendarEventsFromGoogle().fold(
                 onFailure = { error ->
                     Log.e(
                         "Calendar",
@@ -64,7 +72,7 @@ class HomeViewModel(
                 onSuccess = { events ->
                     val appSettings = settingsRepository.getSettings().first()
                     val calendarEvents =
-                        repository.getLocalCalendarEvents().firstOrNull() ?: emptyList()
+                        homeRepository.getLocalCalendarEvents().firstOrNull() ?: emptyList()
                     if (calendarEvents.isEmpty()) {
                         _state.update {
                             it.copy(
@@ -96,7 +104,7 @@ class HomeViewModel(
                                 events = pairOfEvents,
                             )
                             println("Event scheduled for ${pairOfEvents.size} events!!")
-                            _uiEvent.emit(HomeUIEvent.ScheduledEvent)
+                            _uiEvent.send(HomeUIEvent.ScheduledEvent)
                         }
                     }
                 },
@@ -105,10 +113,46 @@ class HomeViewModel(
             }
         }
     }
+
+    fun switchAccount(context: Activity) {
+        viewModelScope.launch {
+            signInRepository.signIn(context).onSuccess {
+                val intent = signInRepository.getGoogleSignInIntent(context)
+                _uiEvent.send(HomeUIEvent.OnSignInIntentGenerated(intent))
+            }
+        }
+    }
+
+    private fun notifyUserInfo() {
+        _state.update {
+            it.copy(
+                userData = homeRepository.getUserData(),
+            )
+        }
+    }
+
+    fun processResult(
+        context: Activity,
+        result: ActivityResult,
+    ) {
+        viewModelScope.launch {
+            signInRepository.processAuthCode(result = result)
+                .onSuccess {
+                    notifyUserInfo()
+                    getCalendar(context)
+                }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        _uiEvent.close()
+    }
 }
 
 sealed interface HomeUIEvent {
     data object None : HomeUIEvent
     data object ScheduledEvent : HomeUIEvent
+    data class OnSignInIntentGenerated(val intent: Intent) : HomeUIEvent
     data class LocalCalendarFetchedEvent(val events: List<CalendarEvent>) : HomeUIEvent
 }
