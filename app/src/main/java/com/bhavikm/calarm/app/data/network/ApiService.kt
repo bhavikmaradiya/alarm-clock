@@ -1,6 +1,8 @@
 package com.bhavikm.calarm.app.data.network
 
 import com.bhavikm.calarm.app.data.network.model.AuthCodeRequest
+import com.bhavikm.calarm.app.data.network.model.AuthStatus
+import com.bhavikm.calarm.app.data.network.model.AuthStatusRequest
 import com.bhavikm.calarm.app.data.network.model.SubscribeCalendarResponse
 import retrofit2.Response
 import retrofit2.http.Body
@@ -12,5 +14,10 @@ interface ApiService {
     suspend fun subscribeToCalendarChanges(
         @Body request: AuthCodeRequest,
     ): Response<SubscribeCalendarResponse>
+
+    @POST("auth/status")
+    suspend fun shouldShowAuthScreen(
+        @Body request: AuthStatusRequest,
+    ): Response<AuthStatus>
 
 }

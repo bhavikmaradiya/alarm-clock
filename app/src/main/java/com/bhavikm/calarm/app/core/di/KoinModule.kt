@@ -44,7 +44,6 @@ val appModule = module {
 
     single<AuthService> {
         FirebaseAuthService(
-            androidContext(),
             settingsService = get()
         )
     }

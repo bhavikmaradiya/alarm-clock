@@ -1,8 +1,8 @@
 package com.bhavikm.calarm.app.features.home.presentation
 
 import android.app.Activity
+import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.util.Log
 import androidx.activity.result.ActivityResult
 import androidx.lifecycle.ViewModel
@@ -118,7 +118,16 @@ class HomeViewModel(
         viewModelScope.launch {
             signInRepository.signIn(context).onSuccess {
                 val intent = signInRepository.getGoogleSignInIntent(context)
-                _uiEvent.send(HomeUIEvent.OnSignInIntentGenerated(intent))
+                if (intent != null) {
+                    _uiEvent.send(HomeUIEvent.OnSignInIntentGenerated(intent))
+                } else {
+                    signInRepository.subscribeToCalendarWebhook().onSuccess {
+                        notifyUserInfo()
+                        getCalendar(context)
+                    }.onFailure {
+                        _uiEvent.send(HomeUIEvent.OnSignInFailure)
+                    }
+                }
             }
         }
     }
@@ -136,10 +145,12 @@ class HomeViewModel(
         result: ActivityResult,
     ) {
         viewModelScope.launch {
-            signInRepository.processAuthCode(result = result)
+            signInRepository.processAuthCode(context, result = result)
                 .onSuccess {
                     notifyUserInfo()
                     getCalendar(context)
+                }.onFailure {
+                    _uiEvent.send(HomeUIEvent.OnSignInFailure)
                 }
         }
     }
@@ -153,6 +164,7 @@ class HomeViewModel(
 sealed interface HomeUIEvent {
     data object None : HomeUIEvent
     data object ScheduledEvent : HomeUIEvent
-    data class OnSignInIntentGenerated(val intent: Intent) : HomeUIEvent
+    data object OnSignInFailure : HomeUIEvent
+    data class OnSignInIntentGenerated(val intent: PendingIntent?) : HomeUIEvent
     data class LocalCalendarFetchedEvent(val events: List<CalendarEvent>) : HomeUIEvent
 }

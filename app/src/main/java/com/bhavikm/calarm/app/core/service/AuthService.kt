@@ -1,9 +1,7 @@
 package com.bhavikm.calarm.app.core.service
 
-import android.accounts.Account
 import android.app.Activity
-import android.content.Context
-import android.content.Intent
+import android.app.PendingIntent
 import android.util.Log
 import androidx.credentials.Credential
 import androidx.credentials.CredentialManager
@@ -13,9 +11,9 @@ import com.bhavikm.calarm.BuildConfig
 import com.bhavikm.calarm.app.core.data.source.local.AppSettingsDao
 import com.bhavikm.calarm.app.data.network.ApiClient
 import com.bhavikm.calarm.app.data.network.model.AuthCodeRequest
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.bhavikm.calarm.app.data.network.model.AuthStatusRequest
+import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -29,41 +27,37 @@ import com.google.firebase.auth.auth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.database
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 
 interface AuthService {
     val currentUser: FirebaseUser?
-    val googleSignInUser: Account?
 
     val isUserSignedIn: Boolean
 
     suspend fun isUserSignedIn(): Boolean
 
-    suspend fun signInWithGoogle(activity: Activity): Result<String>
+    suspend fun signInWithGoogle(activity: Activity): Result<FirebaseUser>
 
-    /*suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent?*/
-    suspend fun getGoogleSignInIntent(activity: Activity): Intent
+    suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent?
     suspend fun signOut()
 
     suspend fun updateFcmToken(token: String? = null)
-    suspend fun firebaseAuthWithGoogle(idToken: String): Result<FirebaseUser>
-    suspend fun subscribeToCalendarWithAuthCode(authCode: String): Result<String>
+
+    suspend fun isPermissionNeeded(): Boolean
+    suspend fun subscribeToCalendarWebhook(authCode: String? = null): Result<String>
 }
 
 class FirebaseAuthService(
-    private val context: Context,
     private val settingsService: AppSettingsDao,
 ) : AuthService {
     private val auth: FirebaseAuth = Firebase.auth
-    private var googleSignInClient: GoogleSignInClient? = null
     private val database: FirebaseDatabase = Firebase.database
     override val currentUser: FirebaseUser? get() = auth.currentUser
-    override val googleSignInUser: Account?
-        get() = GoogleSignIn.getLastSignedInAccount(context)?.account
     override val isUserSignedIn: Boolean
-        get() = currentUser != null && googleSignInUser != null
+        get() = currentUser != null
 
-    override suspend fun signInWithGoogle(activity: Activity): Result<String> =
+    override suspend fun signInWithGoogle(activity: Activity): Result<FirebaseUser> =
         getCredentials(activity)
 
     override suspend fun signOut() {
@@ -77,7 +71,7 @@ class FirebaseAuthService(
     }
 
     override suspend fun isUserSignedIn(): Boolean {
-        return isUserSignedIn /*&& isRefreshTokenAvailable()*/
+        return isUserSignedIn && isRefreshTokenAvailable()
     }
 
     private suspend fun removeRefreshToken() {
@@ -100,7 +94,10 @@ class FirebaseAuthService(
         val user = currentUser ?: return false
         val settings = settingsService.getSettings(user.uid).first()
         val localRefreshToken = settings.sessionId
-        if (localRefreshToken.isNullOrEmpty()) return false
+        if (localRefreshToken.isNullOrEmpty()) {
+            Log.d("FirebaseAuthRepository", "Room refresh token is null")
+            return false
+        }
 
         val userData =
             try {
@@ -110,37 +107,30 @@ class FirebaseAuthService(
                     .get()
                     .await()
             } catch (e: Exception) {
+                Log.e("FirebaseAuthRepository", "isRefreshTokenAvailable: ", e)
                 e.printStackTrace()
                 null
             }
         if (userData?.exists() == true) {
             val refreshTokenChild = userData.child("refreshToken")
-            if (!refreshTokenChild.exists()) {
+            if (refreshTokenChild.exists()) {
                 val refreshToken = refreshTokenChild
                     .value as String?
-                if (refreshToken.isNullOrEmpty()) return false
+                if (refreshToken.isNullOrEmpty()) {
+                    Log.d(
+                        "FirebaseAuthRepository",
+                        "Firebase refresh token is null"
+                    )
+                    return false
+                }
                 return localRefreshToken.compareTo(
                     refreshToken,
                     ignoreCase = false
                 ) == 0
             }
         }
+        Log.d("FirebaseAuthRepository", "Firebase refresh token is null")
         return false
-    }
-
-    override suspend fun getGoogleSignInIntent(activity: Activity): Intent {
-        if (googleSignInClient != null) return googleSignInClient!!.signInIntent
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestProfile()
-            .requestScopes(Scope(CalendarScopes.CALENDAR_READONLY))
-            .requestServerAuthCode(
-                BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID,
-                true,
-            )
-            .build()
-        googleSignInClient = GoogleSignIn.getClient(activity, gso)
-        return googleSignInClient!!.signInIntent
     }
 
     override suspend fun updateFcmToken(token: String?) {
@@ -159,30 +149,51 @@ class FirebaseAuthService(
 
     }
 
-    /*override suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent? =
-        suspendCancellableCoroutine { continuation ->
-            val requestedScopes = listOf(Scope(CalendarScopes.CALENDAR_READONLY))
-            val authorizationRequest =
-                AuthorizationRequest.builder()
-                    .setRequestedScopes(requestedScopes)
-                    .requestOfflineAccess(BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID, true)
-                    .build()
+    override suspend fun getGoogleSignInIntent(
+        activity: Activity,
+    ): PendingIntent? {
+        val requestedScopes = listOf(
+            Scope("openid"),
+            Scope("https://www.googleapis.com/auth/userinfo.email"),
+            Scope("https://www.googleapis.com/auth/userinfo.profile"),
+            Scope(CalendarScopes.CALENDAR_READONLY)
+        )
 
+        val authorizationRequest = AuthorizationRequest.builder()
+            .setRequestedScopes(requestedScopes)
+            .requestOfflineAccess(BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID, true)
+            .build()
+
+        return suspendCancellableCoroutine { continuation ->
             Identity.getAuthorizationClient(activity)
                 .authorize(authorizationRequest)
                 .addOnSuccessListener { result ->
-                    continuation.resume(result.pendingIntent, null)
-                    *//*  if (result.hasResolution()) {
-                      } else {
-                          continuation.resume(result.pendingIntent, null)
-                      }*//*
+                    if (result.hasResolution()) {
+                        continuation.resume(result.pendingIntent) { cause, _, _ -> null }
+                    } else {
+                        continuation.resume(null) { cause, _, _ -> null }
+                    }
                 }
                 .addOnFailureListener { e ->
-                    continuation.resumeWithException(e)
+                    Log.e("GoogleSignIn", "Failed to get Google Sign-In intent", e)
+                    continuation.resume(null) { cause, _, _ -> null }
                 }
-        }*/
+        }
+    }
 
-    private suspend fun getCredentials(activity: Activity): Result<String> {
+    override suspend fun isPermissionNeeded(): Boolean {
+        val userId = currentUser?.uid ?: return true
+        val requestBody =
+            AuthStatusRequest(userId = userId)
+        val response = ApiClient.apiService
+            .shouldShowAuthScreen(
+                request = requestBody
+            )
+
+        return response.body()?.needsScopeConsent ?: return true
+    }
+
+    private suspend fun getCredentials(activity: Activity): Result<FirebaseUser> {
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setAutoSelectEnabled(false)
@@ -196,20 +207,23 @@ class FirebaseAuthService(
         val credentialManager = CredentialManager.create(activity)
 
         return try {
-            val credentialResponse = credentialManager.getCredential(activity, request)
+            val credentialResponse = credentialManager.getCredential(
+                context = activity,
+                request = request
+            )
             handleSignIn(credentialResponse.credential)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    private fun handleSignIn(credential: Credential): Result<String> =
+    private suspend fun handleSignIn(credential: Credential): Result<FirebaseUser> =
         try {
             when (credential) {
                 is GoogleIdTokenCredential -> {
                     val idToken = credential.idToken
                     Result.success(idToken)
-//                    firebaseAuthWithGoogle(idToken)
+                    firebaseAuthWithGoogle(idToken)
                 }
 
                 is CustomCredential        -> {
@@ -217,9 +231,9 @@ class FirebaseAuthService(
                         val googleIdTokenCredential =
                             GoogleIdTokenCredential.createFrom(credential.data)
                         Result.success(googleIdTokenCredential.idToken)
-                        /*firebaseAuthWithGoogle(
+                        firebaseAuthWithGoogle(
                             googleIdTokenCredential.idToken
-                        )*/
+                        )
                     } else {
                         Result.failure(Exception("Not a Google ID Token. CustomCredential with type: ${credential.type}"))
                     }
@@ -233,7 +247,7 @@ class FirebaseAuthService(
             Result.failure(e)
         }
 
-    override suspend fun firebaseAuthWithGoogle(idToken: String): Result<FirebaseUser> =
+    private suspend fun firebaseAuthWithGoogle(idToken: String): Result<FirebaseUser> =
         try {
             val authCredential = GoogleAuthProvider.getCredential(idToken, null)
             val authResult = auth.signInWithCredential(authCredential).await()
@@ -245,12 +259,18 @@ class FirebaseAuthService(
             Result.failure(e)
         }
 
-    override suspend fun subscribeToCalendarWithAuthCode(authCode: String): Result<String> {
+    override suspend fun subscribeToCalendarWebhook(authCode: String?): Result<String> {
         val userId =
-            auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
+            auth.currentUser?.uid
+        if (userId == null) {
+            return Result.failure(Exception("User not authenticated"))
+        }
         try {
             val requestBody =
-                AuthCodeRequest(authCode = authCode, userId = userId)
+                AuthCodeRequest(
+                    authCode = authCode,
+                    userId = userId
+                )
             val response = ApiClient.apiService
                 .subscribeToCalendarChanges(
                     request = requestBody

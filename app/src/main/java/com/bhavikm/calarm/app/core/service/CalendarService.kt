@@ -3,21 +3,15 @@ package com.bhavikm.calarm.app.core.service
 import android.accounts.Account
 import android.content.Context
 import android.util.Log
-import com.bhavikm.calarm.R
 import com.bhavikm.calarm.app.core.data.repository.SettingsRepository
 import com.bhavikm.calarm.app.core.data.source.local.CalendarEventDao
 import com.bhavikm.calarm.app.core.model.AttendeeData
 import com.bhavikm.calarm.app.core.model.AttendeeResponseStatus
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.core.model.EventStatus
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.DateTime
-import com.google.api.client.util.ExponentialBackOff
 import com.google.api.services.calendar.Calendar
-import com.google.api.services.calendar.CalendarScopes
 import com.meticha.triggerx.TriggerXAlarmScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -44,34 +38,34 @@ class GoogleCalendarService(
     private var _calendarService: Calendar? = null
     private var lastUsedAccount: Account? = null
 
-    val calendarService: Calendar
-        get() {
-            val currentAccount = authService.googleSignInUser
+    /* val calendarService: Calendar
+         get() {
+             val currentAccount = authService.googleSignInUser
 
-            if (_calendarService == null ||
-                currentAccount != lastUsedAccount ||
-                currentAccount?.name?.compareTo(
-                    lastUsedAccount?.name ?: "",
-                    ignoreCase = true
-                ) != 0
-            ) {
-                lastUsedAccount = currentAccount
+             if (_calendarService == null ||
+                 currentAccount != lastUsedAccount ||
+                 currentAccount?.name?.compareTo(
+                     lastUsedAccount?.name ?: "",
+                     ignoreCase = true
+                 ) != 0
+             ) {
+                 lastUsedAccount = currentAccount
 
-                val credential = GoogleAccountCredential.usingOAuth2(
-                    context,
-                    listOf(CalendarScopes.CALENDAR_READONLY)
-                ).setBackOff(ExponentialBackOff())
-                credential.selectedAccount = currentAccount
+                 val credential = GoogleAccountCredential.usingOAuth2(
+                     context,
+                     listOf(CalendarScopes.CALENDAR_READONLY)
+                 ).setBackOff(ExponentialBackOff())
+                 credential.selectedAccount = currentAccount
 
-                _calendarService = Calendar.Builder(
-                    NetHttpTransport(),
-                    JacksonFactory.getDefaultInstance(),
-                    credential
-                ).setApplicationName(context.getString(R.string.app_name)).build()
-            }
+                 _calendarService = Calendar.Builder(
+                     NetHttpTransport(),
+                     JacksonFactory.getDefaultInstance(),
+                     credential
+                 ).setApplicationName(context.getString(R.string.app_name)).build()
+             }
 
-            return _calendarService!!
-        }
+             return _calendarService!!
+         }*/
 
     companion object {
         val TAG = GoogleCalendarService::class.simpleName
@@ -94,7 +88,7 @@ class GoogleCalendarService(
                 val in24HoursMillis =
                     nowMillis + ((24 * 60 * 60 * 1000) * settings.defaultDaysToSyncFromNow)
                 val timeMax = DateTime(in24HoursMillis)
-                val events = calendarService.events().list("primary")
+                val events = _calendarService!!.events().list("primary")
                     .setTimeMin(now)
                     .setOrderBy("startTime")
                     .setSingleEvents(true)

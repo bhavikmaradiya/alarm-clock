@@ -10,6 +10,7 @@ import android.text.TextUtils
 import android.text.method.LinkMovementMethod
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -112,7 +113,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
     }
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result -> viewModel.processResult(context, result) }
 
 
@@ -131,7 +132,16 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
                 }
 
                 is HomeUIEvent.OnSignInIntentGenerated -> {
-                    googleCalendarScopeLauncher.launch(event.intent)
+                    if (event.intent != null) {
+                        googleCalendarScopeLauncher.launch(
+                            IntentSenderRequest.Builder(event.intent.intentSender).build()
+                        )
+                    }
+                }
+
+                is HomeUIEvent.OnSignInFailure         -> {
+                    snackBarHostState.showSnackbar("Sign in failed. Please try again.")
+                    onSignOut.invoke()
                 }
 
                 else                                   -> {}

@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class AuthCodeRequest(
     @SerializedName("authCode") // Match your backend's expected field names
-    val authCode: String,
+    val authCode: String?,
     @SerializedName("userId")
     val userId: String,
 )

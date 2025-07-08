@@ -1,15 +1,13 @@
 package com.bhavikm.calarm.app.features.signin.data.repository
 
 import android.app.Activity
-import android.content.Intent
+import android.app.PendingIntent
 import android.util.Log
 import androidx.activity.result.ActivityResult
 import com.bhavikm.calarm.app.core.data.source.local.AppSettingsDao
 import com.bhavikm.calarm.app.core.service.AuthService
 import com.bhavikm.calarm.app.features.signin.domain.repository.SignInRepository
 import com.google.android.gms.auth.api.identity.Identity
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.flow.first
@@ -20,11 +18,9 @@ class SignInRepositoryImpl(
     private val authService: AuthService,
     private val appSettingsDao: AppSettingsDao,
 ) : SignInRepository {
-    private var idToken: String? = null
     override suspend fun signIn(context: Activity): Result<Unit> {
         return authService.signInWithGoogle(context).fold(
             onSuccess = {
-                idToken = it
                 Result.success(Unit)
             },
             onFailure = {
@@ -34,68 +30,42 @@ class SignInRepositoryImpl(
     }
 
 
-    override suspend fun getGoogleSignInIntent(activity: Activity): Intent {
+    override suspend fun getGoogleSignInIntent(
+        activity: Activity,
+    ): PendingIntent? {
+        val shouldShowCalendarPermission = authService.isPermissionNeeded()
+        if (!shouldShowCalendarPermission) {
+            return null
+        }
         return authService.getGoogleSignInIntent(activity)
     }
 
-    /*override suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent? {
-        return authService.getGoogleSignInIntent(activity)
-    }*/
-
-    override suspend fun processAuthCode(result: ActivityResult): Result<FirebaseUser> =
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-
-            try {
-                val account = task.getResult(ApiException::class.java)
-                val authCode = account.serverAuthCode
-                if (idToken != null && authCode != null) {
-                    // 🔁 Subscribe to calendar events and save refreshToken for identifying unique session
-//                    authService.subscribeToCalendarWithAuthCode(authCode)
-//                        .onSuccess { sessionId ->
-                    authService.signOut()
-                    authService.firebaseAuthWithGoogle(idToken = idToken!!)
-                        .onSuccess {
-                            val defaultSettings =
-                                appSettingsDao.getSettings(userId = it.uid)
-                                    .first()
-                            appSettingsDao.upsertSettings(
-                                settings = defaultSettings.copy(
-//                                            sessionId = sessionId
-                                )
-                            )
-                            val fcmToken = getFcmToken()
-                            if (fcmToken != null) {
-                                authService.updateFcmToken(fcmToken)
-                            }
-                        }
-//                        }
-                } else {
-                    Log.e("AUTH_CODE", "Auth code or idToken is null")
-                }
-                if (authService.currentUser != null) {
-                    Result.success(authService.currentUser!!)
-                } else {
-                    Result.failure(Exception("No current user"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        } else {
-            val error =
-                "Google Calendar scope permission denied by user or flow cancelled. Result code: ${result.resultCode}"
-            Log.w(
-                "HomeScreen",
-                error,
+    override suspend fun subscribeToCalendarWebhook(authCode: String?): Result<FirebaseUser?> {
+        val sessionId = authService.subscribeToCalendarWebhook(authCode).getOrNull()
+        if (!sessionId.isNullOrBlank()) {
+            val defaultSettings =
+                appSettingsDao.getSettings(userId = authService.currentUser!!.uid)
+                    .first()
+            appSettingsDao.upsertSettings(
+                settings = defaultSettings.copy(
+                    sessionId = sessionId
+                )
             )
-            Result.failure(Exception(error))
+            val fcmToken = getFcmToken()
+            if (!fcmToken.isNullOrBlank()) {
+                authService.updateFcmToken(fcmToken)
+            }
+            return Result.success(authService.currentUser)
         }
+        authService.signOut()
+        Log.e("AUTH_CODE", "Failed to subscribe to calendar")
+        return Result.failure(Exception("Failed to subscribe to calendar"))
+    }
 
     override suspend fun processAuthCode(
         activity: Activity,
         result: ActivityResult,
     ): Result<FirebaseUser> =
-
         if (result.resultCode == Activity.RESULT_OK) {
             val authorizationResult =
                 Identity.getAuthorizationClient(activity)
@@ -106,11 +76,9 @@ class SignInRepositoryImpl(
                 if (authCode != null) {
                     Log.d("AUTH_CODE", "Received: $authCode")
                     // 🔁 Send this authCode to your backend to exchange for access/refresh tokens
-                    /*subscribeToCalendarWithAuthCode(
-                        authCode,
-                        authService.currentUser?.uid.orEmpty()
-                    )*/
+                    subscribeToCalendarWebhook(authCode)
                 } else {
+                    authService.signOut()
                     Log.e("AUTH_CODE", "Auth code is null")
                 }
                 if (authService.currentUser != null) {
@@ -122,6 +90,7 @@ class SignInRepositoryImpl(
                 Result.failure(e)
             }
         } else {
+            authService.signOut()
             val error =
                 "Google Calendar scope permission denied by user or flow cancelled. Result code: ${result.resultCode}"
             Log.w(

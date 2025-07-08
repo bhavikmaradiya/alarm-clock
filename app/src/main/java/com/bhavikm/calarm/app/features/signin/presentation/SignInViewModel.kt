@@ -1,7 +1,7 @@
 package com.bhavikm.calarm.app.features.signin.presentation
 
 import android.app.Activity
-import android.content.Intent
+import android.app.PendingIntent
 import androidx.activity.result.ActivityResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,7 +33,22 @@ class SignInViewModel(private val signInRepository: SignInRepository) : ViewMode
                 },
                 onSuccess = {
                     val intent = signInRepository.getGoogleSignInIntent(context)
-                    _uiEvent.send(SignInEvent.OnSignInIntentGenerated(intent))
+                    if (intent != null) {
+                        _uiEvent.send(SignInEvent.OnSignInIntentGenerated(intent))
+                    } else {
+                        signInRepository.subscribeToCalendarWebhook().onSuccess {
+                            _state.update { state ->
+                                state.copy(status = SignInStatus.SUCCESS)
+                            }
+                        }.onFailure {
+                            _state.update { state ->
+                                state.copy(
+                                    status = SignInStatus.ERROR,
+                                    error = it.message,
+                                )
+                            }
+                        }
+                    }
                 },
             )
         }
@@ -59,30 +74,6 @@ class SignInViewModel(private val signInRepository: SignInRepository) : ViewMode
         }
     }
 
-    fun processResult(result: ActivityResult) {
-        viewModelScope.launch {
-            signInRepository.processAuthCode(result).fold(
-                onFailure = {
-//                    signInRepository.signOut()
-                    _state.update { state ->
-                        state.copy(
-                            status = SignInStatus.ERROR,
-                            error = it.message,
-                        )
-                    }
-                },
-                onSuccess = {
-                    _state.update { state ->
-                        state.copy(
-                            status = SignInStatus.SUCCESS,
-                            userData = it
-                        )
-                    }
-                },
-            )
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
         _uiEvent.close()
@@ -91,5 +82,5 @@ class SignInViewModel(private val signInRepository: SignInRepository) : ViewMode
 
 sealed interface SignInEvent {
     data object None : SignInEvent
-    data class OnSignInIntentGenerated(val intent: Intent) : SignInEvent
+    data class OnSignInIntentGenerated(val intent: PendingIntent?) : SignInEvent
 }

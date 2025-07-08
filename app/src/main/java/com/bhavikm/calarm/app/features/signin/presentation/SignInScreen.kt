@@ -3,6 +3,7 @@ package com.bhavikm.calarm.app.features.signin.presentation
 import android.app.Activity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,17 +53,21 @@ fun SignInScreen(
     notificationManager.createNotificationChannel(channel)*/
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-        viewModel.processResult(result)
-    }
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result -> viewModel.processResult(activity, result) }
 
 
     LaunchedEffect(Unit) {
         uiEvent.collect {
             when (val event = it) {
                 is SignInEvent.OnSignInIntentGenerated -> {
-                    googleCalendarScopeLauncher.launch(event.intent)
+                    if (event.intent != null) {
+                        googleCalendarScopeLauncher.launch(
+                            input = IntentSenderRequest.Builder(
+                                intentSender = event.intent.intentSender
+                            ).build()
+                        )
+                    }
                 }
 
                 else                                   -> {}

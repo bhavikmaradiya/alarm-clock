@@ -17,15 +17,15 @@ enum class AttendeeResponseStatus {
     companion object {
         fun fromString(status: String?): AttendeeResponseStatus = when (status?.lowercase()) {
             "needsaction" -> NEEDS_ACTION
-            "declined" -> DECLINED
-            "tentative" -> TENTATIVE
-            "accepted" -> ACCEPTED
-            else -> UNKNOWN
+            "declined"    -> DECLINED
+            "tentative"   -> TENTATIVE
+            "accepted"    -> ACCEPTED
+            else          -> UNKNOWN
         }
     }
 }
 
-// Updated data class for storing detailed attendee info
+// Updated data claÏss for storing detailed attendee info
 @Serializable // Make it serializable for JSON conversion
 data class AttendeeData(
     val id: String?, // Attendee ID
