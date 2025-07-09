@@ -11,7 +11,6 @@ import com.bhavikm.calarm.BuildConfig
 import com.bhavikm.calarm.app.core.data.source.local.AppSettingsDao
 import com.bhavikm.calarm.app.data.network.ApiClient
 import com.bhavikm.calarm.app.data.network.model.AuthCodeRequest
-import com.bhavikm.calarm.app.data.network.model.AuthStatusRequest
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
@@ -46,6 +45,7 @@ interface AuthService {
 
     suspend fun isPermissionNeeded(): Boolean
     suspend fun subscribeToCalendarWebhook(authCode: String? = null): Result<String>
+    suspend fun fetchBaseUrlFromFirebase(): String?
 }
 
 class FirebaseAuthService(
@@ -183,12 +183,8 @@ class FirebaseAuthService(
 
     override suspend fun isPermissionNeeded(): Boolean {
         val userId = currentUser?.uid ?: return true
-        val requestBody =
-            AuthStatusRequest(userId = userId)
         val response = ApiClient.apiService
-            .shouldShowAuthScreen(
-                request = requestBody
-            )
+            .shouldShowAuthScreen(userId = userId)
 
         return response.body()?.needsScopeConsent ?: return true
     }
@@ -286,6 +282,17 @@ class FirebaseAuthService(
         } catch (e: Exception) {
             println("Exception during API call: ${e.message}")
             return Result.failure(e)
+        }
+    }
+
+    override suspend fun fetchBaseUrlFromFirebase(): String? {
+        return try {
+            val snapshot = database.getReference("config/baseUrl")
+                .get().await()
+            snapshot.getValue(String::class.java)
+        } catch (e: Exception) {
+            Log.e("AppInit", "Failed to fetch base URL", e)
+            null
         }
     }
 }

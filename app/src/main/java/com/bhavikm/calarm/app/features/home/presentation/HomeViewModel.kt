@@ -108,9 +108,7 @@ class HomeViewModel(
                         }
                     }
                 },
-            ).let {
-                workScheduler.scheduleWorker()
-            }
+            )
         }
     }
 

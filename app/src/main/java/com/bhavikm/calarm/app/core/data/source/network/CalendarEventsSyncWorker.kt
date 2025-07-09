@@ -47,7 +47,7 @@ class CalendarEventsSyncWorker(
         val appSettings = settingsRepository.getSettings().first()
         val currentTime = Clock.System.now().toEpochMilliseconds()
 
-        if (appSettings.lastSyncedTime != null &&
+        /*if (appSettings.lastSyncedTime != null &&
             (currentTime - appSettings.lastSyncedTime <= MINUTE_IN_MILLIS)
         ) {
             Log.d(
@@ -55,7 +55,7 @@ class CalendarEventsSyncWorker(
                 "Skipping sync, last sync was at ${appSettings.lastSyncedTime}, which is less than a minute ago from $currentTime.",
             )
             return Result.failure()
-        }
+        }*/
 
         val resultFromRepository =
             calendarService.getCalendarEvents()

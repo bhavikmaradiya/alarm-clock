@@ -1,0 +1,42 @@
+package com.bhavikm.calarm.app.core.data.model
+
+import com.bhavikm.calarm.app.core.model.AttendeeData
+import com.bhavikm.calarm.app.core.model.EventStatus
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class CalendarEvent(
+    val id: Int = 0,
+    val eventId: String,
+    val eventName: String,
+    val startTimeMillis: Long,
+    val endTimeMillis: Long,
+    val isRecurring: Boolean = false,
+    val googleCalendarApiStatus: String? = null,
+//    val eventStatus: EventStatus = EventStatus.PENDING,
+    val location: String? = null,
+    val calendarId: String? = null,
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val notes: String? = null,
+    val attendees: List<AttendeeData>? = null,
+)
+
+fun CalendarEvent.toRoomModel(): com.bhavikm.calarm.app.core.model.CalendarEvent {
+    return com.bhavikm.calarm.app.core.model.CalendarEvent(
+        eventId = this.eventId,
+        eventName = this.eventName,
+        startTimeMillis = this.startTimeMillis,
+        endTimeMillis = this.endTimeMillis,
+        isRecurring = this.isRecurring,
+        googleCalendarApiStatus = this.googleCalendarApiStatus,
+        eventStatus = EventStatus.PENDING,
+        location = this.location,
+        calendarId = this.calendarId,
+        lastUpdated = this.lastUpdated,
+        notes = this.notes,
+        attendees = this.attendees
+    )
+}
+
+fun List<CalendarEvent>.toRoomList(): List<com.bhavikm.calarm.app.core.model.CalendarEvent> =
+    this.map { it.toRoomModel() }

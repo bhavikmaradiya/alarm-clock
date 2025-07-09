@@ -5,14 +5,17 @@ import android.content.Intent
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import com.bhavikm.calarm.app.core.data.source.network.CalendarEventsSyncWorker
+import com.bhavikm.calarm.app.core.service.WorkScheduler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 
 class CalendarNotificationListenerService : NotificationListenerService() {
+
+    val workScheduler by inject<WorkScheduler>()
+    val coroutineScope = CoroutineScope(Dispatchers.IO)
+
 
     override fun onCreate() {
         super.onCreate()
@@ -33,11 +36,10 @@ class CalendarNotificationListenerService : NotificationListenerService() {
         val title = extras.getString(Notification.EXTRA_TITLE)
         val channelId = notification.channelId
 
-        if (sbn.packageName == applicationContext.packageName && (title == "Calendar updated" || channelId == "calendar_updates")) {
-            /* val notificationManager =
-                 getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-             notificationManager.cancel(sbn.id)*/
-            enqueueCalendarSync()
+        if (sbn.packageName == applicationContext.packageName
+            && (title == "Calendar updated" || channelId == "calendar_updates")
+        ) {
+            coroutineScope.launch { workScheduler.enqueueCalendarSync() }
         }
     }
 
@@ -54,21 +56,5 @@ class CalendarNotificationListenerService : NotificationListenerService() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d("NotificationListener", "❌ Service destroyed")
-    }
-
-    private fun enqueueCalendarSync() {
-        val workRequest = OneTimeWorkRequestBuilder<CalendarEventsSyncWorker>()
-            .setConstraints(
-                Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build(),
-            )
-            .build()
-
-        WorkManager.getInstance(applicationContext)
-            .enqueueUniqueWork(
-                CalendarEventsSyncWorker.Companion.WORKER_NAME,
-                ExistingWorkPolicy.REPLACE,
-                workRequest
-            )
     }
 }

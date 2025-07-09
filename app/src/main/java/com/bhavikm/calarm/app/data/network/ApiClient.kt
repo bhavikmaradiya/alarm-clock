@@ -9,18 +9,20 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     // Replace with your actual base URL
-    private const val BASE_URL = "https://ece505fc72ab.ngrok-free.app/"
+    private const val BASE_URL = "https://1121cecb569e.ngrok-free.app/"
 
 
     val apiService: ApiService by lazy {
         retrofit.create(ApiService::class.java)
     }
 
-    private val retrofit: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
+    private lateinit var retrofit: Retrofit
+
+    fun initRetrofit(baseUrl: String) {
+        retrofit = Retrofit.Builder()
+            .baseUrl(baseUrl.ensureTrailingSlash())
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create()) // Using Gson
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
@@ -35,4 +37,6 @@ object ApiClient {
             .writeTimeout(30, TimeUnit.SECONDS)   // Optional: Set write timeout
             .build()
     }
+
+    fun String.ensureTrailingSlash(): String = if (endsWith("/")) this else "$this/"
 }
