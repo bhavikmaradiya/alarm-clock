@@ -7,14 +7,12 @@ import com.bhavikm.calarm.app.core.data.repository.SettingsRepository
 import com.bhavikm.calarm.app.core.data.source.local.CalendarEventDao
 import com.bhavikm.calarm.app.core.model.CalendarEvent
 import com.bhavikm.calarm.app.data.network.ApiClient
-import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.meticha.triggerx.TriggerXAlarmScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
-import java.io.IOException
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -72,14 +70,6 @@ class GoogleCalendarService(
                 }
 
                 Result.success(calendarList)
-            } catch (e: GoogleJsonResponseException) {
-                val errorBody = e.details?.message ?: e.message ?: "Unknown API Error"
-                println("$TAG Google API Error: ${e.statusCode} - $errorBody")
-                println("Full exception details: $e")
-                Result.failure(e)
-            } catch (e: IOException) {
-                println("$TAG Network Error: ${e.message} $e")
-                Result.failure(e)
             } catch (e: Exception) {
                 println("$TAG Unexpected Error: ${e.message} $e")
                 Result.failure(e)

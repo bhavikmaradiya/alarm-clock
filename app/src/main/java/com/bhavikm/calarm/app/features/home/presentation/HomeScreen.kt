@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.core.text.HtmlCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -319,6 +320,10 @@ fun NotificationAccessDialog(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            ),
             title = {
                 Text("Calendar Updates")
             },
@@ -339,11 +344,6 @@ fun NotificationAccessDialog(
                     Text("Allow Access")
                 }
             },
-            dismissButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("Maybe Later")
-                }
-            }
         )
     }
 }
@@ -519,8 +519,7 @@ private fun HomeComposable(
                                 .clickable(true) {
                                     onSwitchAccountClick.invoke()
                                 },
-
-                            )
+                        )
                     }
                 )
             },

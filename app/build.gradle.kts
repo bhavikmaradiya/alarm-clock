@@ -16,16 +16,32 @@ if (localPropertiesFile.exists()) {
     localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
+val keystorePropertiesFile = rootProject.file("keystore.properties") // Adjusted path
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
 android {
     namespace = "com.bhavikm.calarm"
     compileSdk = 36
+
+    signingConfigs {
+        create("release") {
+            storeFile =
+                file(keystoreProperties.getProperty("storeFile"))
+            storePassword = keystoreProperties.getProperty("storePassword") ?: ""
+            keyAlias = keystoreProperties.getProperty("keyAlias") ?: ""
+            keyPassword = keystoreProperties.getProperty("keyPassword") ?: ""
+        }
+    }
 
     defaultConfig {
         applicationId = "com.bhavikm.calarm"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val googleSignInClientId = localProperties.getProperty("GOOGLE_SIGN_IN_SERVER_CLIENT_ID")
@@ -45,7 +61,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -116,9 +132,6 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
-
-    implementation(libs.google.api.client.android)
-    implementation(libs.google.api.services.calendar)
     implementation(libs.google.http.client.gson)
 
     implementation(libs.androidx.navigation3.ui)
@@ -127,7 +140,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3.android)
     implementation(libs.play.services.auth)
-//    implementation(libs.arrow.core)
     implementation(libs.triggerx)
     implementation(libs.kotlinx.datetime)
     implementation(libs.koin.androidx.workmanager)

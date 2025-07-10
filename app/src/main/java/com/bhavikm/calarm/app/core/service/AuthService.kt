@@ -17,7 +17,6 @@ import com.google.android.gms.common.api.Scope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-import com.google.api.services.calendar.CalendarScopes
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -78,16 +77,6 @@ class FirebaseAuthService(
         val user = currentUser ?: return
         val settings = settingsService.getSettings(user.uid).first()
         settingsService.upsertSettings(settings.copy(sessionId = null))
-        /*try {
-            database.reference
-                .child("users")
-                .child(user.uid)
-                .child("refreshToken")
-                .removeValue()
-                .await()
-        } catch (e: Exception) {
-            Log.e("FirebaseAuthRepository", "removeRefreshToken: ", e)
-        }*/
     }
 
     private suspend fun isRefreshTokenAvailable(): Boolean {
@@ -156,7 +145,7 @@ class FirebaseAuthService(
             Scope("openid"),
             Scope("https://www.googleapis.com/auth/userinfo.email"),
             Scope("https://www.googleapis.com/auth/userinfo.profile"),
-            Scope(CalendarScopes.CALENDAR_READONLY)
+            Scope("https://www.googleapis.com/auth/calendar.readonly")
         )
 
         val authorizationRequest = AuthorizationRequest.builder()

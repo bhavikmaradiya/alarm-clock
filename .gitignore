@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+# Keystore files (if stored in project)
+*.jks
+*.keystore
+
+# Keystore properties
+keystore.properties
