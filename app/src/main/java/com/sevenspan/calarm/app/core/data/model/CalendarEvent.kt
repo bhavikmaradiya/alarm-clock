@@ -21,8 +21,8 @@ data class CalendarEvent(
     val attendees: List<AttendeeData>? = null,
 )
 
-fun CalendarEvent.toRoomModel(): com.sevenspan.calarm.app.core.model.CalendarEvent {
-    return com.sevenspan.calarm.app.core.model.CalendarEvent(
+fun CalendarEvent.toRoomModel(): com.sevenspan.calarm.app.core.model.CalendarEvent =
+    com.sevenspan.calarm.app.core.model.CalendarEvent(
         eventId = this.eventId,
         eventName = this.eventName,
         startTimeMillis = this.startTimeMillis,
@@ -34,9 +34,8 @@ fun CalendarEvent.toRoomModel(): com.sevenspan.calarm.app.core.model.CalendarEve
         calendarId = this.calendarId,
         lastUpdated = this.lastUpdated,
         notes = this.notes,
-        attendees = this.attendees
+        attendees = this.attendees,
     )
-}
 
 fun List<CalendarEvent>.toRoomList(): List<com.sevenspan.calarm.app.core.model.CalendarEvent> =
     this.map { it.toRoomModel() }

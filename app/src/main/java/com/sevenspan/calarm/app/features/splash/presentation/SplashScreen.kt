@@ -28,7 +28,7 @@ fun SplashScreen(
     LaunchedEffect(Unit) {
         event.collect {
             when (it) {
-                is SplashEvent.NavigateToHome   -> {
+                is SplashEvent.NavigateToHome -> {
                     currentOnAuthCheck(true)
                 }
 

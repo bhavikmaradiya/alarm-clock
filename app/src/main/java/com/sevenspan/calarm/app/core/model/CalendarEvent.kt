@@ -17,10 +17,10 @@ enum class AttendeeResponseStatus {
     companion object {
         fun fromString(status: String?): AttendeeResponseStatus = when (status?.lowercase()) {
             "needsaction" -> NEEDS_ACTION
-            "declined"    -> DECLINED
-            "tentative"   -> TENTATIVE
-            "accepted"    -> ACCEPTED
-            else          -> UNKNOWN
+            "declined" -> DECLINED
+            "tentative" -> TENTATIVE
+            "accepted" -> ACCEPTED
+            else -> UNKNOWN
         }
     }
 }

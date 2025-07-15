@@ -16,7 +16,6 @@ class CalendarNotificationListenerService : NotificationListenerService() {
     val workScheduler by inject<WorkScheduler>()
     val coroutineScope = CoroutineScope(Dispatchers.IO)
 
-
     override fun onCreate() {
         super.onCreate()
         Log.d("NotificationListener", "✅ Service created")
@@ -36,8 +35,8 @@ class CalendarNotificationListenerService : NotificationListenerService() {
         val title = extras.getString(Notification.EXTRA_TITLE)
         val channelId = notification.channelId
 
-        if (sbn.packageName == applicationContext.packageName
-            && (title == "Calendar updated" || channelId == "calendar_updates")
+        if (sbn.packageName == applicationContext.packageName &&
+            (title == "Calendar updated" || channelId == "calendar_updates")
         ) {
             coroutineScope.launch { workScheduler.enqueueCalendarSync() }
         }

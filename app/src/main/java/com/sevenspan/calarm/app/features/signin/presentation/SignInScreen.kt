@@ -28,12 +28,8 @@ import com.sevenspan.calarm.CalarmApp.Companion.isNetworkAvailable
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
-
 @Composable
-fun SignInScreen(
-    viewModel: SignInViewModel = koinViewModel(),
-    onAuthSuccess: () -> Unit,
-) {
+fun SignInScreen(viewModel: SignInViewModel = koinViewModel(), onAuthSuccess: () -> Unit) {
     val activity = LocalActivity.current as Activity
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
@@ -56,7 +52,6 @@ fun SignInScreen(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result -> viewModel.processResult(activity, result) }
 
-
     LaunchedEffect(Unit) {
         uiEvent.collect {
             when (val event = it) {
@@ -64,13 +59,13 @@ fun SignInScreen(
                     if (event.intent != null) {
                         googleCalendarScopeLauncher.launch(
                             input = IntentSenderRequest.Builder(
-                                intentSender = event.intent.intentSender
-                            ).build()
+                                intentSender = event.intent.intentSender,
+                            ).build(),
                         )
                     }
                 }
 
-                else                                   -> {}
+                else -> {}
             }
         }
     }
@@ -81,11 +76,11 @@ fun SignInScreen(
                 onAuthSuccess.invoke()
             }
 
-            SignInStatus.ERROR   -> {
+            SignInStatus.ERROR -> {
                 snackBarHostState.showSnackbar("Sign in failed: ${state.error}")
             }
 
-            else                 -> {}
+            else -> {}
         }
     }
 
@@ -121,7 +116,7 @@ fun SignInComposable(
             )
         },
 
-        ) { innerPadding ->
+    ) { innerPadding ->
         Body(
             modifier = Modifier.padding(innerPadding),
             signInState = signInState,
@@ -131,14 +126,10 @@ fun SignInComposable(
 }
 
 @Composable
-fun Body(
-    signInState: SignInState,
-    onSignInClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun Body(signInState: SignInState, onSignInClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier
-            .fillMaxSize()
+            .fillMaxSize(),
 
     ) {
         when (signInState.status) {
@@ -151,7 +142,7 @@ fun Body(
 
             SignInStatus.ERROR,
             SignInStatus.INITIAL,
-                                 -> Button(
+            -> Button(
                 modifier = Modifier.align(Alignment.Center),
                 onClick = onSignInClick,
             ) {
@@ -167,4 +158,3 @@ fun Body(
         }
     }
 }
-

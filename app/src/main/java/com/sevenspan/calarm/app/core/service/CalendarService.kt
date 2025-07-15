@@ -34,10 +34,8 @@ class GoogleCalendarService(
         val TAG = GoogleCalendarService::class.simpleName
     }
 
-
     override suspend fun getCalendarEvents(): Result<List<CalendarEvent>> =
         withContext(Dispatchers.IO) {
-
             try {
                 val settings =
                     settingsRepository.getSettings().first()
@@ -47,7 +45,6 @@ class GoogleCalendarService(
                 calendarEventDao.deleteAllEvents()
                 Log.d(TAG, "Fetching Google Calendar events with access token.")
 
-
                 val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
                 val now = OffsetDateTime.now(ZoneOffset.UTC)
                 val timeMax = now.plusHours((24 * settings.defaultDaysToSyncFromNow).toLong())
@@ -56,7 +53,7 @@ class GoogleCalendarService(
                     .getCalendarEvents(
                         timeMin = now.format(formatter),
                         timeMax = timeMax.format(formatter),
-                        userId = authService.currentUser!!.uid
+                        userId = authService.currentUser!!.uid,
                     )
 
                 val calendarList = response.body()?.toRoomList() ?: listOf()
@@ -76,7 +73,6 @@ class GoogleCalendarService(
             }
         }
 
-    override fun getLocalCalendarEvents(): Flow<List<CalendarEvent>> {
-        return calendarEventDao.getAllEvents()
-    }
+    override fun getLocalCalendarEvents(): Flow<List<CalendarEvent>> =
+        calendarEventDao.getAllEvents()
 }

@@ -11,7 +11,6 @@ object ApiClient {
     // Replace with your actual base URL
     private const val BASE_URL = "https://1121cecb569e.ngrok-free.app/"
 
-
     val apiService: ApiService by lazy {
         retrofit.create(ApiService::class.java)
     }
@@ -33,8 +32,8 @@ object ApiClient {
         OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS) // Optional: Set connection timeout
-            .readTimeout(30, TimeUnit.SECONDS)    // Optional: Set read timeout
-            .writeTimeout(30, TimeUnit.SECONDS)   // Optional: Set write timeout
+            .readTimeout(30, TimeUnit.SECONDS) // Optional: Set read timeout
+            .writeTimeout(30, TimeUnit.SECONDS) // Optional: Set write timeout
             .build()
     }
 

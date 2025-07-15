@@ -98,8 +98,7 @@ class AlarmActivity : TriggerXActivity() {
 
     private fun playNotificationSound() {
         audioManager = getSystemService(
-            AudioManager::
-            class.java
+            AudioManager::class.java,
         )
         originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING)
 
@@ -120,13 +119,11 @@ class AlarmActivity : TriggerXActivity() {
         ringtone.play()
     }
 
-
     private fun restoreOriginalVolume() {
         originalVolume?.let {
             audioManager.setStreamVolume(AudioManager.STREAM_RING, it, 0)
         }
     }
-
 
     @Composable
     override fun AlarmContent() {
@@ -166,7 +163,7 @@ class AlarmActivity : TriggerXActivity() {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.secondary,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     Spacer(modifier = Modifier.height(35.dp))
@@ -174,22 +171,26 @@ class AlarmActivity : TriggerXActivity() {
                     // Row for Date and Time
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         EventDetailItem(
                             iconVector = Icons.Filled.CalendarMonth,
                             label = "Date",
                             value = dateFormatter.format(Date(calendarEvent.startTimeMillis)),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         EventDetailItem(
                             iconVector = Icons.Filled.Schedule,
                             label = "Time",
-                            value = "${timeFormatter.format(Date(calendarEvent.startTimeMillis))} - ${
+                            value = "${
+                                timeFormatter.format(
+                                    Date(calendarEvent.startTimeMillis),
+                                )
+                            } - ${
                                 timeFormatter.format(Date(calendarEvent.endTimeMillis))
                             }",
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                     }
 
@@ -197,14 +198,14 @@ class AlarmActivity : TriggerXActivity() {
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         EventDetailItem(
                             iconVector = Icons.Filled.LocationOn,
                             label = "Location",
                             value = calendarEvent.location?.takeIf { it.isNotBlank() }
-                                    ?: "Not specified",
-                            modifier = Modifier.weight(1f)
+                                ?: "Not specified",
+                            modifier = Modifier.weight(1f),
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         val attendee = calendarEvent.attendees?.find { it.organizer == true }
@@ -215,13 +216,13 @@ class AlarmActivity : TriggerXActivity() {
                                     ?.first()?.split(".")
                                     ?.first()
                                     ?.replaceFirstChar(Char::titlecase)
-                                ?: "Unknown"
-                                                     )
+                                    ?: "Unknown"
+                                )
                         EventDetailItem(
                             iconVector = Icons.Filled.Person,
                             label = "Host",
                             value = hostValue,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                     }
 
@@ -232,7 +233,7 @@ class AlarmActivity : TriggerXActivity() {
                                 iconVector = Icons.Filled.Notes,
                                 label = "Notes",
                                 value = notes,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             ) {
                                 ExpandableHtmlText(
                                     notes,
@@ -248,24 +249,24 @@ class AlarmActivity : TriggerXActivity() {
                         if (validAttendees.isNotEmpty()) {
                             val values = validAttendees.mapIndexed { i, attendee ->
                                 val displayName = (
-                                                      attendee.displayName ?: (
-                                                          attendee.email?.split("@")
-                                                              ?.first()?.split(".")
-                                                              ?.first()
-                                                              ?.replaceFirstChar(
-                                                                  Char::titlecase,
-                                                              )
-                                                          ?: "Unknown"
-                                                                              )
-                                                  ) +
-                                                  if (i !=
-                                                      validAttendees.size -
-                                                      1
-                                                  ) {
-                                                      ","
-                                                  } else {
-                                                      ""
-                                                  }
+                                    attendee.displayName ?: (
+                                        attendee.email?.split("@")
+                                            ?.first()?.split(".")
+                                            ?.first()
+                                            ?.replaceFirstChar(
+                                                Char::titlecase,
+                                            )
+                                            ?: "Unknown"
+                                        )
+                                    ) +
+                                    if (i !=
+                                        validAttendees.size -
+                                        1
+                                    ) {
+                                        ","
+                                    } else {
+                                        ""
+                                    }
                                 return@mapIndexed displayName
                             }.joinToString(" ")
                             Column(modifier = Modifier.fillMaxWidth()) {
@@ -276,10 +277,9 @@ class AlarmActivity : TriggerXActivity() {
                                         iconVector = Icons.Filled.People,
                                         label = "Attendees",
                                         value = values,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
                                     )
                                 }
-
                             }
                         }
                     }
@@ -290,7 +290,7 @@ class AlarmActivity : TriggerXActivity() {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.secondary,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(modifier = Modifier.height(20.dp))
                     Text(
@@ -304,7 +304,7 @@ class AlarmActivity : TriggerXActivity() {
                 Spacer(modifier = Modifier.height(35.dp))
                 Button(
                     onClick = { finish() },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(text = "STOP")
                 }
@@ -313,10 +313,7 @@ class AlarmActivity : TriggerXActivity() {
     }
 
     @Composable
-    fun ExpandableHtmlText(
-        htmlText: String,
-        collapsedMaxLines: Int = 3,
-    ) {
+    fun ExpandableHtmlText(htmlText: String, collapsedMaxLines: Int = 3) {
         var isExpanded by remember { mutableStateOf(false) }
         var isTruncated by remember { mutableStateOf(false) }
 
@@ -349,7 +346,7 @@ class AlarmActivity : TriggerXActivity() {
                             isExpanded = !isExpanded
                         }
                     }
-                }
+                },
             )
 
             AnimatedVisibility(visible = isTruncated || isExpanded) {
@@ -359,19 +356,23 @@ class AlarmActivity : TriggerXActivity() {
                         .padding(top = 4.dp)
                         .clickable { isExpanded = !isExpanded },
                     horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = if (isExpanded) "Show less" else "Show more",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(end = 4.dp)
+                        modifier = Modifier.padding(end = 4.dp),
                     )
                     Icon(
-                        imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        imageVector = if (isExpanded) {
+                            Icons.Filled.KeyboardArrowUp
+                        } else {
+                            Icons.Filled.KeyboardArrowDown
+                        },
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -396,7 +397,7 @@ class AlarmActivity : TriggerXActivity() {
                     imageVector = iconVector,
                     contentDescription = label,
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.secondary
+                    tint = MaterialTheme.colorScheme.secondary,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
@@ -412,14 +413,13 @@ class AlarmActivity : TriggerXActivity() {
                 // Make the whole notes section clickable to toggle expansion
                 modifier = Modifier.clickable(
                     interactionSource = interactionSource,
-                    indication = null
+                    indication = null,
                 ) {
-
                     // Only toggle if there's actually more to show or if it's already expanded
                     if (textIsTruncated || isNotesExpanded) {
                         isNotesExpanded = !isNotesExpanded
                     }
-                }
+                },
             ) {
                 AnimatedVisibility(visible = !isNotesExpanded) {
                     Text(
@@ -431,14 +431,14 @@ class AlarmActivity : TriggerXActivity() {
                         overflow = TextOverflow.Ellipsis,
                         onTextLayout = { textLayoutResult ->
                             textIsTruncated = textLayoutResult.didOverflowHeight
-                        }
+                        },
                     )
                 }
                 AnimatedVisibility(visible = isNotesExpanded) {
                     Text(
                         text = value,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontSize = 15.sp
+                        fontSize = 15.sp,
                     )
                 }
 
@@ -447,26 +447,29 @@ class AlarmActivity : TriggerXActivity() {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = if (isNotesExpanded) "Show less" else "Show more",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(end = 4.dp)
+                            modifier = Modifier.padding(end = 4.dp),
                         )
                         Icon(
-                            imageVector = if (isNotesExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            imageVector = if (isNotesExpanded) {
+                                Icons.Filled.KeyboardArrowUp
+                            } else {
+                                Icons.Filled.KeyboardArrowDown
+                            },
                             contentDescription = if (isNotesExpanded) "Collapse" else "Expand",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
             }
         }
     }
-
 
     override fun onDestroy() {
         ringtone.stop()

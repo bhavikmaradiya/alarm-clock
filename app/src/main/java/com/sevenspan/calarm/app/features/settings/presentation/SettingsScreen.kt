@@ -52,7 +52,7 @@ fun SettingsScreen() {
         showDialog = isNotificationAccessDialogVisible,
         onDismiss = {
             isNotificationAccessDialogVisible = false
-        }
+        },
     )
 
     Scaffold(
@@ -60,7 +60,7 @@ fun SettingsScreen() {
             TopAppBar(
                 title = { Text("Settings") },
                 colors = TopAppBarDefaults.topAppBarColors().copy(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
                 ),
             )
         },
@@ -80,18 +80,18 @@ fun SettingsScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = "Stay in Sync",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Keep up with changes, even when in hustle",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -99,10 +99,9 @@ fun SettingsScreen() {
                     checked = notificationsEnabled,
                     onCheckedChange = {
                         isNotificationAccessDialogVisible = it
-                    }
+                    },
                 )
             }
-
 
             HorizontalDivider()
 
@@ -204,10 +203,7 @@ fun SettingsScreen() {
 }
 
 @Composable
-fun NotificationAccessDialog(
-    showDialog: Boolean,
-    onDismiss: () -> Unit,
-) {
+fun NotificationAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
     val context = LocalContext.current
     if (showDialog) {
         AlertDialog(
@@ -218,7 +214,7 @@ fun NotificationAccessDialog(
             text = {
                 Text(
                     "Want to stay updated even when you're busy or on the move? \n\n" +
-                    "Allow notification access so we can sync your calendar updates even when you're on hustle."
+                        "Allow notification access so we can sync your calendar updates even when you're on hustle.",
                 )
             },
             confirmButton = {
@@ -236,11 +232,10 @@ fun NotificationAccessDialog(
                 TextButton(onClick = onDismiss) {
                     Text("Maybe Later")
                 }
-            }
+            },
         )
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable

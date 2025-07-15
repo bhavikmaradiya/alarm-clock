@@ -14,4 +14,4 @@ data class SignInState(
     var userData: FirebaseUser? = null,
     var error: String? = null,
 
-    )
+)

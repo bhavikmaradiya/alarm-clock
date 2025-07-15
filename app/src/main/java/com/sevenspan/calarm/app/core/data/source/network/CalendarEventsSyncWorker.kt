@@ -23,7 +23,8 @@ class CalendarEventsSyncWorker(
     private val alarmScheduler: TriggerXAlarmScheduler,
     private val analytics: AnalyticsService,
     private val authService: AuthService,
-) : CoroutineWorker(appContext, workerParams), KoinComponent {
+) : CoroutineWorker(appContext, workerParams),
+    KoinComponent {
 
     companion object {
         const val WORKER_NAME = "com.example.workmanager.app.worker.CalendarSyncWorker"
@@ -72,7 +73,7 @@ class CalendarEventsSyncWorker(
                     val pairOfEvents = calendarEvents.mapNotNull { event ->
                         val reminderTimeMillis =
                             event.startTimeMillis -
-                            (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
+                                (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
                         if (reminderTimeMillis > System.currentTimeMillis()) {
                             Pair(event.id, reminderTimeMillis)
                         } else {

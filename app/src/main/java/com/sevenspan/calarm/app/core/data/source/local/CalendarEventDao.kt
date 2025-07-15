@@ -64,8 +64,8 @@ interface CalendarEventDao {
 
     @Query(
         "SELECT * FROM calendar_events " +
-        "WHERE startTimeMillis > :currentTime " +
-        "ORDER BY startTimeMillis ASC",
+            "WHERE startTimeMillis > :currentTime " +
+            "ORDER BY startTimeMillis ASC",
     )
     fun getUpcomingEvents(currentTime: Long = System.currentTimeMillis()): Flow<List<CalendarEvent>>
 

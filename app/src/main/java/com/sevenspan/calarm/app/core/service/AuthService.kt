@@ -47,9 +47,7 @@ interface AuthService {
     suspend fun fetchBaseUrlFromFirebase(): String?
 }
 
-class FirebaseAuthService(
-    private val settingsService: AppSettingsDao,
-) : AuthService {
+class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthService {
     private val auth: FirebaseAuth = Firebase.auth
     private val database: FirebaseDatabase = Firebase.database
     override val currentUser: FirebaseUser? get() = auth.currentUser
@@ -69,9 +67,7 @@ class FirebaseAuthService(
         googleSignInClient = null*/
     }
 
-    override suspend fun isUserSignedIn(): Boolean {
-        return isUserSignedIn && isRefreshTokenAvailable()
-    }
+    override suspend fun isUserSignedIn(): Boolean = isUserSignedIn && isRefreshTokenAvailable()
 
     private suspend fun removeRefreshToken() {
         val user = currentUser ?: return
@@ -108,13 +104,13 @@ class FirebaseAuthService(
                 if (refreshToken.isNullOrEmpty()) {
                     Log.d(
                         "FirebaseAuthRepository",
-                        "Firebase refresh token is null"
+                        "Firebase refresh token is null",
                     )
                     return false
                 }
                 return localRefreshToken.compareTo(
                     refreshToken,
-                    ignoreCase = false
+                    ignoreCase = false,
                 ) == 0
             }
         }
@@ -135,17 +131,14 @@ class FirebaseAuthService(
         } catch (e: Exception) {
             Log.e("FirebaseAuthRepository", "updateFcmToken: ", e)
         }
-
     }
 
-    override suspend fun getGoogleSignInIntent(
-        activity: Activity,
-    ): PendingIntent? {
+    override suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent? {
         val requestedScopes = listOf(
             Scope("openid"),
             Scope("https://www.googleapis.com/auth/userinfo.email"),
             Scope("https://www.googleapis.com/auth/userinfo.profile"),
-            Scope("https://www.googleapis.com/auth/calendar.readonly")
+            Scope("https://www.googleapis.com/auth/calendar.readonly"),
         )
 
         val authorizationRequest = AuthorizationRequest.builder()
@@ -194,7 +187,7 @@ class FirebaseAuthService(
         return try {
             val credentialResponse = credentialManager.getCredential(
                 context = activity,
-                request = request
+                request = request,
             )
             handleSignIn(credentialResponse.credential)
         } catch (e: Exception) {
@@ -202,47 +195,58 @@ class FirebaseAuthService(
         }
     }
 
-    private suspend fun handleSignIn(credential: Credential): Result<FirebaseUser> =
-        try {
-            when (credential) {
-                is GoogleIdTokenCredential -> {
-                    val idToken = credential.idToken
-                    Result.success(idToken)
-                    firebaseAuthWithGoogle(idToken)
-                }
+    private suspend fun handleSignIn(credential: Credential): Result<FirebaseUser> = try {
+        when (credential) {
+            is GoogleIdTokenCredential -> {
+                val idToken = credential.idToken
+                Result.success(idToken)
+                firebaseAuthWithGoogle(idToken)
+            }
 
-                is CustomCredential        -> {
-                    if (credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                        val googleIdTokenCredential =
-                            GoogleIdTokenCredential.createFrom(credential.data)
-                        Result.success(googleIdTokenCredential.idToken)
-                        firebaseAuthWithGoogle(
-                            googleIdTokenCredential.idToken
-                        )
-                    } else {
-                        Result.failure(Exception("Not a Google ID Token. CustomCredential with type: ${credential.type}"))
-                    }
-                }
-
-                else                       -> {
-                    Result.failure(Exception("Not a Google ID Token. Credential type: ${credential::class.java.name}"))
+            is CustomCredential -> {
+                if (credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    val googleIdTokenCredential =
+                        GoogleIdTokenCredential.createFrom(credential.data)
+                    Result.success(googleIdTokenCredential.idToken)
+                    firebaseAuthWithGoogle(
+                        googleIdTokenCredential.idToken,
+                    )
+                } else {
+                    Result.failure(
+                        Exception(
+                            "Not a Google ID Token. CustomCredential with type: ${credential.type}",
+                        ),
+                    )
                 }
             }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
 
-    private suspend fun firebaseAuthWithGoogle(idToken: String): Result<FirebaseUser> =
-        try {
-            val authCredential = GoogleAuthProvider.getCredential(idToken, null)
-            val authResult = auth.signInWithCredential(authCredential).await()
-            if (authResult.user != null) {
-                Result.success(authResult.user!!)
-            } else
-                Result.failure(exception = Exception("Firebase user not found after successful authentication."))
-        } catch (e: Exception) {
-            Result.failure(e)
+            else -> {
+                Result.failure(
+                    Exception(
+                        "Not a Google ID Token. Credential type: ${credential::class.java.name}",
+                    ),
+                )
+            }
         }
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    private suspend fun firebaseAuthWithGoogle(idToken: String): Result<FirebaseUser> = try {
+        val authCredential = GoogleAuthProvider.getCredential(idToken, null)
+        val authResult = auth.signInWithCredential(authCredential).await()
+        if (authResult.user != null) {
+            Result.success(authResult.user!!)
+        } else {
+            Result.failure(
+                exception = Exception(
+                    "Firebase user not found after successful authentication.",
+                ),
+            )
+        }
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 
     override suspend fun subscribeToCalendarWebhook(authCode: String?): Result<String> {
         val userId =
@@ -254,11 +258,11 @@ class FirebaseAuthService(
             val requestBody =
                 AuthCodeRequest(
                     authCode = authCode,
-                    userId = userId
+                    userId = userId,
                 )
             val response = ApiClient.apiService
                 .subscribeToCalendarChanges(
-                    request = requestBody
+                    request = requestBody,
                 )
 
             val sessionId = response.body()?.sessionId
@@ -274,14 +278,12 @@ class FirebaseAuthService(
         }
     }
 
-    override suspend fun fetchBaseUrlFromFirebase(): String? {
-        return try {
-            val snapshot = database.getReference("config/baseUrl")
-                .get().await()
-            snapshot.getValue(String::class.java)
-        } catch (e: Exception) {
-            Log.e("AppInit", "Failed to fetch base URL", e)
-            null
-        }
+    override suspend fun fetchBaseUrlFromFirebase(): String? = try {
+        val snapshot = database.getReference("config/baseUrl")
+            .get().await()
+        snapshot.getValue(String::class.java)
+    } catch (e: Exception) {
+        Log.e("AppInit", "Failed to fetch base URL", e)
+        null
     }
 }

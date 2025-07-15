@@ -9,9 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
-class SplashViewModel(
-    private val authService: AuthService,
-) : ViewModel() {
+class SplashViewModel(private val authService: AuthService) : ViewModel() {
     private val _uiEvent = Channel<SplashEvent>()
     val uiEvent: Flow<SplashEvent> = _uiEvent.receiveAsFlow()
 
@@ -29,7 +27,6 @@ class SplashViewModel(
             }
         }
     }
-
 }
 
 sealed class SplashEvent {

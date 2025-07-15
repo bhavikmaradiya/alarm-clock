@@ -18,21 +18,17 @@ class SignInRepositoryImpl(
     private val authService: AuthService,
     private val appSettingsDao: AppSettingsDao,
 ) : SignInRepository {
-    override suspend fun signIn(context: Activity): Result<Unit> {
-        return authService.signInWithGoogle(context).fold(
+    override suspend fun signIn(context: Activity): Result<Unit> =
+        authService.signInWithGoogle(context).fold(
             onSuccess = {
                 Result.success(Unit)
             },
             onFailure = {
                 Result.failure(it)
-            }
+            },
         )
-    }
 
-
-    override suspend fun getGoogleSignInIntent(
-        activity: Activity,
-    ): PendingIntent? {
+    override suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent? {
         val shouldShowCalendarPermission = authService.isPermissionNeeded()
         if (!shouldShowCalendarPermission) {
             return null
@@ -48,8 +44,8 @@ class SignInRepositoryImpl(
                     .first()
             appSettingsDao.upsertSettings(
                 settings = defaultSettings.copy(
-                    sessionId = sessionId
-                )
+                    sessionId = sessionId,
+                ),
             )
             val fcmToken = getFcmToken()
             if (!fcmToken.isNullOrBlank()) {
@@ -65,44 +61,40 @@ class SignInRepositoryImpl(
     override suspend fun processAuthCode(
         activity: Activity,
         result: ActivityResult,
-    ): Result<FirebaseUser> =
-        if (result.resultCode == Activity.RESULT_OK) {
-            val authorizationResult =
-                Identity.getAuthorizationClient(activity)
-                    .getAuthorizationResultFromIntent(result.data)
-            try {
-                val account = authorizationResult.toGoogleSignInAccount()
-                val authCode = account?.serverAuthCode
-                if (authCode != null) {
-                    Log.d("AUTH_CODE", "Received: $authCode")
-                    // 🔁 Send this authCode to your backend to exchange for access/refresh tokens
-                    subscribeToCalendarWebhook(authCode)
-                } else {
-                    authService.signOut()
-                    Log.e("AUTH_CODE", "Auth code is null")
-                }
-                if (authService.currentUser != null) {
-                    Result.success(authService.currentUser!!)
-                } else {
-                    Result.failure(Exception("No current user"))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+    ): Result<FirebaseUser> = if (result.resultCode == Activity.RESULT_OK) {
+        val authorizationResult =
+            Identity.getAuthorizationClient(activity)
+                .getAuthorizationResultFromIntent(result.data)
+        try {
+            val account = authorizationResult.toGoogleSignInAccount()
+            val authCode = account?.serverAuthCode
+            if (authCode != null) {
+                Log.d("AUTH_CODE", "Received: $authCode")
+                subscribeToCalendarWebhook(authCode)
+            } else {
+                authService.signOut()
+                Log.e("AUTH_CODE", "Auth code is null")
             }
-        } else {
-            authService.signOut()
-            val error =
-                "Google Calendar scope permission denied by user or flow cancelled. Result code: ${result.resultCode}"
-            Log.w(
-                "HomeScreen",
-                error,
-            )
-            Result.failure(Exception(error))
+            if (authService.currentUser != null) {
+                Result.success(authService.currentUser!!)
+            } else {
+                Result.failure(Exception("No current user"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-
+    } else {
+        authService.signOut()
+        val error =
+            "Google Calendar scope permission denied by user or flow cancelled. Result code: ${result.resultCode}"
+        Log.w(
+            "HomeScreen",
+            error,
+        )
+        Result.failure(Exception(error))
+    }
 
     override suspend fun signOut() = authService.signOut()
-
 
     private suspend fun getFcmToken(): String? = suspendCoroutine { continuation ->
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
@@ -112,9 +104,9 @@ class SignInRepositoryImpl(
                 Log.w(
                     "FCM_TOKEN",
                     "Fetching FCM registration token failed in SignInRepo",
-                    task.exception
+                    task.exception,
                 )
-                continuation.resume(null) // Or continuation.resumeWithException(task.exception!!)
+                continuation.resume(null)
             }
         }
     }

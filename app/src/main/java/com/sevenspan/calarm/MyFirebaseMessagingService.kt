@@ -27,7 +27,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         serviceScope.launch { authService.updateFcmToken(token) }
     }
 
-
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         Log.d(TAG, "From: ${remoteMessage.from}")
 

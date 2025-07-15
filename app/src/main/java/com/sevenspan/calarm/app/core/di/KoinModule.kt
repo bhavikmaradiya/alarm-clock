@@ -44,7 +44,7 @@ val appModule = module {
 
     single<AuthService> {
         FirebaseAuthService(
-            settingsService = get()
+            settingsService = get(),
         )
     }
     single<WorkScheduler> {

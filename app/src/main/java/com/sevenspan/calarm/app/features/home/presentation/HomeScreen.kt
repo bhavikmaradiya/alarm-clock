@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.icu.util.Calendar
+import android.net.Uri
 import android.provider.Settings
 import android.text.TextUtils
 import android.text.method.LinkMovementMethod
@@ -36,16 +37,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -87,6 +91,8 @@ import com.meticha.triggerx.permission.rememberAppPermissionState
 import com.sevenspan.calarm.CalarmApp.Companion.isNetworkAvailable
 import com.sevenspan.calarm.app.core.model.AttendeeData
 import com.sevenspan.calarm.app.core.model.CalendarEvent
+import com.sevenspan.calarm.app.features.settings.presentation.NotificationAccessDialog
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import org.koin.androidx.compose.koinViewModel
@@ -103,62 +109,78 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
     val uiEvent = viewModel.uiEvent
     val permissionState = rememberAppPermissionState()
     val snackBarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
     val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    var isNotificationListenerDialogVisible by remember {
-        mutableStateOf(
-            !isNotificationListenerEnabled(
-                context
-            )
-        )
+
+    // Notification Access State
+    val isNotificationAccessGranted = remember(context) { isNotificationListenerEnabled(context) }
+    var showNotificationAccessDialog by rememberSaveable(isNotificationAccessGranted) {
+        mutableStateOf(!isNotificationAccessGranted)
+    }
+
+    val isNotificationPolicyGranted =
+        remember(context) { notificationManager.isNotificationPolicyAccessGranted }
+    var showNotificationPolicyDialog by rememberSaveable(isNotificationPolicyGranted) {
+        mutableStateOf(!isNotificationPolicyGranted)
     }
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result -> viewModel.processResult(context, result) }
 
-
     LaunchedEffect(Unit) {
-        if (!notificationManager.isNotificationPolicyAccessGranted
-        ) {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-            context.startActivity(intent)
-            snackBarHostState.showSnackbar("Please grant sound access for Calarm to work properly.")
-        }
-
         uiEvent.collect {
             when (val event = it) {
-                is HomeUIEvent.ScheduledEvent          -> {
+                is HomeUIEvent.ScheduledEvent -> {
                     snackBarHostState.showSnackbar("Event scheduled successfully!")
                 }
 
                 is HomeUIEvent.OnSignInIntentGenerated -> {
                     if (event.intent != null) {
                         googleCalendarScopeLauncher.launch(
-                            IntentSenderRequest.Builder(event.intent.intentSender).build()
+                            IntentSenderRequest.Builder(event.intent.intentSender)
+                                .build(),
                         )
                     }
                 }
 
-                is HomeUIEvent.OnSignInFailure         -> {
+                is HomeUIEvent.OnSignInFailure -> {
                     snackBarHostState.showSnackbar("Sign in failed. Please try again.")
                     onSignOut.invoke()
                 }
 
-                else                                   -> {}
+                else -> {}
             }
         }
     }
 
-    NotificationAccessDialog(
-        showDialog = isNotificationListenerDialogVisible,
-        onDismiss = {
-            isNotificationListenerDialogVisible = false
-        }
-    )
+    if (showNotificationAccessDialog &&
+        !isNotificationAccessGranted
+    ) {
+        NotificationAccessDialog(
+            showDialog = true,
+            onDismiss = {
+                showNotificationAccessDialog = false
+            },
+        )
+    }
+    if (showNotificationPolicyDialog &&
+        !isNotificationPolicyGranted
+    ) {
+        NotificationPolicyAccessDialog(
+            showDialog = true,
+            onDismiss = {
+                showNotificationPolicyDialog = false
+            },
+        )
+    }
 
     LaunchedEffect(key1 = Unit) {
-        if (permissionState.allRequiredGranted()) {
+        if (isNotificationAccessGranted &&
+            permissionState.allRequiredGranted()
+        ) {
             viewModel.getCalendar(context)
         }
     }
@@ -168,12 +190,36 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
         homeSate = state,
         snackBarHostState = snackBarHostState,
         permissionState = permissionState,
+        scope = coroutineScope,
+        onUnifiedReEnableClick = {
+            if (!isNotificationListenerEnabled(context)) {
+                showNotificationAccessDialog = true
+                return@HomeComposable
+            }
+            if (!notificationManager.isNotificationPolicyAccessGranted) {
+                showNotificationPolicyDialog = true
+                return@HomeComposable
+            }
+            coroutineScope.launch {
+                if (!permissionState.allRequiredGranted()) {
+                    permissionState.requestPermission()
+                } else {
+                    snackBarHostState.showSnackbar("All permissions granted!")
+                }
+            }
+        },
+        onUnifiedShowManualStepsClick = {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            intent.data = Uri.fromParts("package", context.packageName, null)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        },
         onSyncClick = {
             viewModel.getCalendar(context)
         },
         onSwitchAccountClick = {
             viewModel.switchAccount(context)
-        }
+        },
     )
 }
 
@@ -181,95 +227,55 @@ fun isNotificationListenerEnabled(context: Context): Boolean {
     val packageName = context.packageName
     val enabledListeners = Settings.Secure.getString(
         context.contentResolver,
-        "enabled_notification_listeners"
+        "enabled_notification_listeners",
     ) ?: return false
-
     return enabledListeners.split(":").any { it.contains(packageName) }
 }
 
 @Composable
-fun Body(
-    homeSate: HomeState,
+fun ManualPermissionGuidanceUI(
+    warningText: String,
+    onReEnableClick: () -> Unit,
+    onShowManualStepsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LocalContext.current
-    rememberAppPermissionState()
-
-    Column(
-        modifier
-            .fillMaxSize()
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant, // Or a warning color
+        ),
     ) {
-        /*Row(
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        )
-        {
-            Column {
-                Text(
-                    text = "Load your calendar events:",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(end = 16.dp),
-                )
-                if (homeSate.lastSynced != null) {
-                    Text(
-                        text = "Last synced: ${formatLastSyncedTime(homeSate.lastSynced)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = warningText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f), // Text takes available space
+            )
+            Row {
+                // Row for the two IconButtons
+                IconButton(onClick = onReEnableClick) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "Re-enable Permissions",
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
-            }
-            Button(
-                onClick = {
-                    if (permissionState.allRequiredGranted()) {
-                        viewModel.getCalendar(context)
-                    } else {
-                        permissionState.requestPermission()
-                    }
-                },
-            ) {
-                Text(text = "Sync")
-            }
-        }*/
-        Box(modifier = Modifier.fillMaxSize()) {
-            when (homeSate.status) {
-                HomeStatus.LOADING -> {
-                    LoadingIndicator(
-                        modifier = Modifier.align(alignment = Alignment.Center),
-                        color = Color.Gray,
-                    )
-                }
-
-                HomeStatus.LOADED  -> {
-                    LazyColumn {
-                        items(homeSate.events) { event ->
-                            EventItem(
-                                event = event,
-                                modifier = Modifier.padding(
-                                    vertical = 12.dp,
-                                    horizontal = 20.dp
-                                )
-                            )
-                        }
-                    }
-                }
-
-                HomeStatus.ERROR   -> {
-                    Text(
-                        modifier = Modifier.align(Alignment.Center),
-                        text = homeSate.error ?: "Something went wrong!",
-                    )
-                }
-
-                HomeStatus.INITIAL,
-                HomeStatus.EMPTY,
-                                   -> {
-                    Text(
-                        modifier = Modifier.align(Alignment.Center),
-                        text = "No data found!\nTry to sync again!",
-                        textAlign = TextAlign.Center,
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = onShowManualStepsClick) {
+                    Icon(
+                        imageVector = Icons.Filled.HelpOutline,
+                        contentDescription = "Show Manual Steps",
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -278,11 +284,94 @@ fun Body(
 }
 
 @Composable
-private fun AttendeeInitialsCircle(
-    name: String,
-    modifier: Modifier = Modifier,
-    size: Dp = 24.dp,
-) {
+fun NotificationPolicyAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
+            ),
+            title = {
+                Text("Grant Sound & Vibration Access")
+            },
+            text = {
+                Text(
+                    "Calarm needs permission to control notification settings. " +
+                        "This allows alarms to sound even when Do Not Disturb is active " +
+                        "and helps manage alarm volume effectively.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                    if (intent.resolveActivity(context.packageManager) != null) {
+                        context.startActivity(intent)
+                    } else {
+                        android.util.Log.e(
+                            "NotificationPolicy",
+                            "Could not open Notification Policy settings.",
+                        )
+                    }
+                    onDismiss() // Dismiss the dialog after attempting to open settings
+                }) {
+                    Text("Open Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Later")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+fun Body(homeSate: HomeState, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxSize()) {
+        when (homeSate.status) {
+            HomeStatus.LOADING -> {
+                Spacer(modifier = Modifier.fillMaxSize())
+            }
+
+            HomeStatus.LOADED -> {
+                LazyColumn {
+                    items(homeSate.events) { event ->
+                        EventItem(
+                            event = event,
+                            modifier = Modifier.padding(
+                                vertical = 12.dp,
+                                horizontal = 20.dp,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            HomeStatus.ERROR -> {
+                Text(
+                    modifier = Modifier.align(Alignment.Center),
+                    text = homeSate.error ?: "Something went wrong!",
+                )
+            }
+
+            HomeStatus.INITIAL,
+            HomeStatus.EMPTY,
+            -> {
+                Text(
+                    modifier = Modifier.align(Alignment.Center),
+                    text = "No data found! Try to sync again!",
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttendeeInitialsCircle(name: String, modifier: Modifier = Modifier, size: Dp = 24.dp) {
     val initial = name.firstOrNull()?.uppercaseChar() ?: '?'
     Box(
         modifier = modifier
@@ -290,13 +379,13 @@ private fun AttendeeInitialsCircle(
             .background(rememberAvatarBackgroundColor(name = name), CircleShape)
             .clip(CircleShape)
             .border(width = 1.5.dp, color = Color.White, shape = CircleShape),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = initial.toString(),
-            color = Color.White, // Assuming white text for contrast
-            fontSize = (size.value / 2).sp, // Dynamic font size
-            fontWeight = FontWeight.Medium
+            color = Color.White,
+            fontSize = (size.value / 2).sp,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
@@ -312,17 +401,14 @@ private fun rememberAvatarBackgroundColor(name: String): Color {
 }
 
 @Composable
-fun NotificationAccessDialog(
-    showDialog: Boolean,
-    onDismiss: () -> Unit,
-) {
+fun NotificationAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
     val context = LocalContext.current
     if (showDialog) {
         AlertDialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
             ),
             title = {
                 Text("Calendar Updates")
@@ -330,12 +416,11 @@ fun NotificationAccessDialog(
             text = {
                 Text(
                     "Want to stay updated even when you're busy or on the move? \n\n" +
-                    "Allow notification access so we can sync your calendar updates even when you're on hustle."
+                        "Allow notification access so we can sync your calendar updates even when you're on hustle.",
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val context = context
                     val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(intent)
@@ -344,10 +429,64 @@ fun NotificationAccessDialog(
                     Text("Allow Access")
                 }
             },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Later")
+                }
+            },
         )
     }
 }
 
+@Composable
+fun BatteryOptimizationDialog(showDialog: Boolean, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
+            ),
+            title = {
+                Text("Important: Disable Battery Optimizations")
+            },
+            text = {
+                Text(
+                    "For Calarm to work reliably and ensure your alarms " +
+                        "and calendar updates are always on time, " +
+                        "please disable battery optimizations for the app.\n\n" +
+                        "This helps prevent the system from closing the app " +
+                        "or delaying its tasks.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val intent = Intent().apply {
+                        action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    if (intent.resolveActivity(context.packageManager) != null) {
+                        context.startActivity(intent)
+                    } else {
+                        android.util.Log.e(
+                            "BatteryOptimization",
+                            "Could not open battery optimization settings.",
+                        )
+                    }
+                    onDismiss()
+                }) {
+                    Text("Disable Optimizations")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Later")
+                }
+            },
+        )
+    }
+}
 
 @Composable
 private fun StackedAttendeesAvatars(
@@ -359,7 +498,7 @@ private fun StackedAttendeesAvatars(
 ) {
     val validAttendees = attendees
         .filter { !(it.resource ?: false) && (it.displayName != null || it.email != null) }
-        .take(maxVisible + 1) // Take one more to check if we need to show "+N"
+        .take(maxVisible + 1)
 
     if (validAttendees.isEmpty()) return
 
@@ -371,30 +510,30 @@ private fun StackedAttendeesAvatars(
                 size = avatarSize,
                 modifier = Modifier
                     .padding(start = (index * avatarSize * (1 - overlapFactor)))
-                    .zIndex(maxVisible - index.toFloat()) // Higher zIndex for items at the start of the list (drawn on top)
+                    .zIndex(maxVisible - index.toFloat()),
             )
         }
 
         if (validAttendees.size > maxVisible) {
             val remainingCount =
-                attendees.size - maxVisible // Calculate based on original full list
+                attendees.size - maxVisible
             Box(
                 modifier = Modifier
                     .padding(start = (maxVisible * avatarSize * (1 - overlapFactor)))
                     .size(avatarSize)
                     .background(
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        CircleShape
+                        CircleShape,
                     )
                     .clip(CircleShape)
-                    .zIndex(0f), // Ensure it's behind the last visible avatar if needed, or drawn last
-                contentAlignment = Alignment.Center
+                    .zIndex(0f),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = "+$remainingCount",
                     color = Color.White,
                     fontSize = (avatarSize.value / 2.5).sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
@@ -416,20 +555,20 @@ private fun formatLastSyncedTime(timestamp: Long?): String {
     val calendarTimestamp = Calendar.getInstance().apply { timeInMillis = timestamp }
 
     return when {
-        minutes < 1                                 -> "Just now"
-        minutes < 60                                -> if (minutes == 1L) {
+        minutes < 1 -> "Just now"
+        minutes < 60 -> if (minutes == 1L) {
             "$minutes minute ago"
         } else {
             "$minutes minutes ago"
         }
 
         hours < 24 &&
-        calendarNow.get(Calendar.DAY_OF_YEAR) == calendarTimestamp.get(Calendar.DAY_OF_YEAR) &&
-        calendarNow.get(
-            Calendar.YEAR,
-        ) == calendarTimestamp.get(Calendar.YEAR)   -> {
+            calendarNow.get(Calendar.DAY_OF_YEAR) == calendarTimestamp.get(Calendar.DAY_OF_YEAR) &&
+            calendarNow.get(
+                Calendar.YEAR,
+            ) == calendarTimestamp.get(Calendar.YEAR) -> {
             val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
-            "${sdf.format(Date(timestamp))}"
+            "Today at ${sdf.format(Date(timestamp))}"
         }
 
         isYesterday(calendarTimestamp, calendarNow) -> {
@@ -437,36 +576,36 @@ private fun formatLastSyncedTime(timestamp: Long?): String {
             "Yesterday at ${sdf.format(Date(timestamp))}"
         }
 
-        else                                        -> {
+        else -> {
             val sdf = SimpleDateFormat("MMM dd, yyyy h:mm a", Locale.getDefault())
             sdf.format(Date(timestamp))
         }
     }
 }
 
-private fun isYesterday(
-    targetCalendar: Calendar,
-    currentCalendar: Calendar,
-): Boolean {
+private fun isYesterday(targetCalendar: Calendar, currentCalendar: Calendar): Boolean {
     val tempCalendar = currentCalendar.clone() as Calendar
     tempCalendar.add(Calendar.DAY_OF_YEAR, -1)
     return tempCalendar.get(Calendar.YEAR) == targetCalendar.get(Calendar.YEAR) &&
-           tempCalendar.get(
-               Calendar.DAY_OF_YEAR,
-           ) == targetCalendar.get(Calendar.DAY_OF_YEAR)
+        tempCalendar.get(
+            Calendar.DAY_OF_YEAR,
+        ) == targetCalendar.get(Calendar.DAY_OF_YEAR)
 }
 
 @Composable
 private fun HomeComposable(
     context: Context,
-    homeSate: HomeState = HomeState(),
     permissionState: PermissionState,
+    onUnifiedReEnableClick: () -> Unit,
+    onUnifiedShowManualStepsClick: () -> Unit,
+    homeSate: HomeState = HomeState(),
     snackBarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onSyncClick: () -> Unit = {},
     onSwitchAccountClick: () -> Unit = {},
+    scope: CoroutineScope = rememberCoroutineScope(),
 ) {
     val isLoading = homeSate.status == HomeStatus.LOADING
-    val scope = rememberCoroutineScope()
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -475,7 +614,7 @@ private fun HomeComposable(
                 TopAppBar(
                     title = { Text("Events") },
                     colors = TopAppBarDefaults.topAppBarColors().copy(
-                        containerColor = MaterialTheme.colorScheme.background
+                        containerColor = MaterialTheme.colorScheme.background,
                     ),
                     actions = {
                         FilledTonalIconButton(
@@ -487,22 +626,29 @@ private fun HomeComposable(
                             },
                             onClick = {
                                 scope.launch {
-                                    if (permissionState.allRequiredGranted() && isNetworkAvailable(
-                                            context
+                                    if (permissionState.allRequiredGranted() &&
+                                        isNetworkAvailable(
+                                            context,
                                         )
                                     ) {
                                         onSyncClick.invoke()
                                     } else if (!permissionState.allRequiredGranted()) {
                                         permissionState.requestPermission()
                                     } else {
-                                        snackBarHostState.showSnackbar("Please check your internet connection")
+                                        snackBarHostState.showSnackbar(
+                                            "Please check your internet connection",
+                                        )
                                     }
                                 }
                             },
                             colors = IconButtonDefaults.filledTonalIconButtonColors()
-                                .copy(containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)),
+                                .copy(
+                                    containerColor = MaterialTheme.colorScheme.tertiary.copy(
+                                        alpha = 0.2f,
+                                    ),
+                                ),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.padding(end = 10.dp)
+                            modifier = Modifier.padding(end = 10.dp),
                         )
                         AsyncImage(
                             model = homeSate.userData?.photoUrl,
@@ -514,34 +660,46 @@ private fun HomeComposable(
                                 .border(
                                     5.dp,
                                     MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
-                                    CircleShape
+                                    CircleShape,
                                 )
                                 .clickable(true) {
                                     onSwitchAccountClick.invoke()
                                 },
                         )
-                    }
+                    },
                 )
             },
         ) { innerPadding ->
-            Body(
-                modifier = Modifier.padding(innerPadding),
-                homeSate = homeSate,
-            )
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+            ) {
+                ManualPermissionGuidanceUI(
+                    warningText = "Critical permissions needed. \nTap icons to enable.",
+                    onReEnableClick = onUnifiedReEnableClick,
+                    onShowManualStepsClick = onUnifiedShowManualStepsClick,
+                )
+                Body(
+                    homeSate = homeSate,
+                )
+            }
         }
         if (isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f))
                     .pointerInput(Unit) {
-                        detectTapGestures { }
+                        detectTapGestures { /* Consume taps */ }
                     },
-                contentAlignment = Alignment.Center
-            ) {}
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.onSurface)
+            }
         }
     }
 }
-
 
 private val timeFormatter = SimpleDateFormat("h:mm a", Locale.getDefault())
 private val dateFormatter = SimpleDateFormat(
@@ -565,26 +723,28 @@ private fun formatRemainingTime(startTimeMillis: Long): String {
     val calendarNow = Calendar.getInstance()
 
     return when {
-        minutes < 60                                                                                         -> "In $minutes minutes"
-        hours < 24 && calendarStart.get(Calendar.DAY_OF_YEAR) == calendarNow.get(Calendar.DAY_OF_YEAR)       -> "In $hours hours"
-        days.toInt() == 0 && calendarStart.get(Calendar.DAY_OF_YEAR) > calendarNow.get(Calendar.DAY_OF_YEAR) -> { // Tomorrow
+        minutes < 60 -> "In $minutes minutes"
+        hours < 24 &&
+            calendarStart.get(
+                Calendar.DAY_OF_YEAR,
+            ) == calendarNow.get(Calendar.DAY_OF_YEAR) -> "In $hours hours"
+        days.toInt() == 0 &&
+            calendarStart.get(Calendar.DAY_OF_YEAR) > calendarNow.get(Calendar.DAY_OF_YEAR) -> {
             val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
             "Tomorrow at ${sdf.format(Date(startTimeMillis))}"
         }
 
-        else                                                                                                 -> {
+        else -> {
             val remainingHoursInDay = hours % 24
-            "In $days day ${if (remainingHoursInDay > 0) "$remainingHoursInDay hours" else ""}"
+            val daysString = "$days day${if (days > 1) "s" else ""}"
+            val hoursString = if (remainingHoursInDay > 0) " $remainingHoursInDay hours" else ""
+            "In $daysString$hoursString".trim()
         }
     }
-
 }
 
 @Composable
-fun EventItem(
-    event: CalendarEvent,
-    modifier: Modifier = Modifier,
-) {
+fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Card(
         modifier = modifier
@@ -593,18 +753,17 @@ fun EventItem(
             .clickable { expanded = !expanded },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
     ) {
         Row(
             modifier = Modifier
-                .padding(vertical = 20.dp, horizontal = 20.dp)
+                .padding(vertical = 20.dp, horizontal = 20.dp),
         ) {
             Column(
                 modifier = Modifier
                     .weight(1f),
-            )
-            {
+            ) {
                 Text(
                     text = formatRemainingTime(event.startTimeMillis),
                     style = MaterialTheme.typography.headlineLarge,
@@ -622,7 +781,7 @@ fun EventItem(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Normal,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
                         )
                     }
                 }
@@ -654,7 +813,7 @@ fun EventItem(
                                 )
                             }",
                             style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
                         )
                         Spacer(modifier = Modifier.height(1.dp))
                         Text(
@@ -662,7 +821,7 @@ fun EventItem(
                                 dateFormatter.format(Date(event.startTimeMillis))
                             }",
                             style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
                         )
                         event.notes?.let { notes ->
                             if (notes.isNotBlank()) {
@@ -711,36 +870,36 @@ fun EventItem(
                                     ) {
                                         validAttendees.forEachIndexed { i, attendee ->
                                             val displayName =
-                                                remember(
-                                                    attendee.displayName,
-                                                    attendee.email
-                                                ) {
-                                                    (
-                                                        attendee.displayName ?: (
-                                                            attendee.email?.split("@")
-                                                                ?.first()?.split(".")
-                                                                ?.first()
-                                                                ?.replaceFirstChar(
-                                                                    Char::titlecase,
-                                                                )
-                                                            ?: "Unknown"
-                                                                                )
-                                                    ) +
-                                                    if (i !=
-                                                        validAttendees.size -
-                                                        1
-                                                    ) {
+                                                remember(attendee.displayName, attendee.email) {
+                                                    val email = attendee.email
+                                                    val firstPartOfEmail =
+                                                        email?.split("@")?.firstOrNull()
+                                                    val nameSegmentFromEmail =
+                                                        firstPartOfEmail?.split(".")?.firstOrNull()
+                                                    val capitalizedNameSegment =
+                                                        nameSegmentFromEmail
+                                                            ?.replaceFirstChar(Char::titlecase)
+
+                                                    val actualDisplayName = attendee.displayName
+                                                    val baseName = actualDisplayName
+                                                        ?: capitalizedNameSegment
+                                                        ?: "Unknown"
+
+                                                    val isNotLastAttendee =
+                                                        i != validAttendees.size - 1
+                                                    val suffix = if (isNotLastAttendee) {
                                                         ","
                                                     } else {
                                                         ""
                                                     }
+                                                    baseName + suffix
                                                 }
                                             Box {
                                                 Text(
                                                     displayName,
                                                     maxLines = 1,
                                                     style = MaterialTheme.typography.bodyMedium,
-                                                    fontSize = 14.sp
+                                                    fontSize = 14.sp,
                                                 )
                                             }
                                         }
@@ -755,7 +914,7 @@ fun EventItem(
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxHeight()
+                modifier = Modifier.fillMaxHeight(),
             ) {
                 Icon(
                     imageVector = if (expanded) {
@@ -766,8 +925,8 @@ fun EventItem(
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     modifier = Modifier
                         .size(30.dp)
-                        .padding(start = 8.dp), // Add some padding if needed
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant // Optional: Set icon color
+                        .padding(start = 8.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (!expanded && !event.attendees.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(10.dp))
@@ -779,10 +938,7 @@ fun EventItem(
 }
 
 @Composable
-fun ExpandableHtmlText(
-    htmlText: String,
-    collapsedMaxLines: Int = 3,
-) {
+fun ExpandableHtmlText(htmlText: String, collapsedMaxLines: Int = 3) {
     remember { MutableInteractionSource() }
     var isExpanded by remember { mutableStateOf(false) }
     var isTruncated by remember { mutableStateOf(false) }
@@ -816,7 +972,7 @@ fun ExpandableHtmlText(
                         isExpanded = !isExpanded
                     }
                 }
-            }
+            },
         )
 
         AnimatedVisibility(visible = isTruncated || isExpanded) {
@@ -826,19 +982,23 @@ fun ExpandableHtmlText(
                     .padding(top = 4.dp)
                     .clickable { isExpanded = !isExpanded },
                 horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = if (isExpanded) "Show less" else "Show more",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(end = 4.dp)
+                    modifier = Modifier.padding(end = 4.dp),
                 )
                 Icon(
-                    imageVector = if (isExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    imageVector = if (isExpanded) {
+                        Icons.Filled.KeyboardArrowUp
+                    } else {
+                        Icons.Filled.KeyboardArrowDown
+                    },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }

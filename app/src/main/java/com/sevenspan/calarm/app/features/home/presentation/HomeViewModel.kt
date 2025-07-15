@@ -91,7 +91,7 @@ class HomeViewModel(
                         val pairOfEvents = calendarEvents.mapNotNull { event ->
                             val reminderTimeMillis =
                                 event.startTimeMillis -
-                                (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
+                                    (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
                             if (reminderTimeMillis > System.currentTimeMillis()) {
                                 Pair(event.id, reminderTimeMillis)
                             } else {
@@ -138,10 +138,7 @@ class HomeViewModel(
         }
     }
 
-    fun processResult(
-        context: Activity,
-        result: ActivityResult,
-    ) {
+    fun processResult(context: Activity, result: ActivityResult) {
         viewModelScope.launch {
             signInRepository.processAuthCode(context, result = result)
                 .onSuccess {

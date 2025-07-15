@@ -12,10 +12,7 @@ import androidx.work.WorkManager
 import com.sevenspan.calarm.app.core.data.source.network.CalendarEventsSyncWorker
 import java.util.concurrent.TimeUnit
 
-class WorkScheduler(
-    private val context: Context,
-    private val authService: AuthService,
-) {
+class WorkScheduler(private val context: Context, private val authService: AuthService) {
 
     companion object {
         private const val TAG = "WorkScheduler"
@@ -60,7 +57,7 @@ class WorkScheduler(
                 .enqueueUniqueWork(
                     CalendarEventsSyncWorker.Companion.WORKER_NAME,
                     ExistingWorkPolicy.REPLACE,
-                    workRequest
+                    workRequest,
                 )
         }
     }

@@ -19,9 +19,7 @@ interface ApiService {
     ): Response<SubscribeCalendarResponse>
 
     @GET("auth/status")
-    suspend fun shouldShowAuthScreen(
-        @Header("X-User-Id") userId: String,
-    ): Response<AuthStatus>
+    suspend fun shouldShowAuthScreen(@Header("X-User-Id") userId: String): Response<AuthStatus>
 
     @GET("calendar/events")
     suspend fun getCalendarEvents(
@@ -29,5 +27,4 @@ interface ApiService {
         @Query("timeMin") timeMin: String?,
         @Query("timeMax") timeMax: String?,
     ): Response<List<CalendarEvent>?>
-
 }

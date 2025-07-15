@@ -20,7 +20,7 @@ class FirebaseAnalyticsService(private val analyticsService: FirebaseAnalytics) 
                         param(it.key, it.value as String)
                     }
 
-                    is Long   -> {
+                    is Long -> {
                         param(it.key, it.value as Long)
                     }
 
@@ -28,7 +28,7 @@ class FirebaseAnalyticsService(private val analyticsService: FirebaseAnalytics) 
                         param(it.key, it.value as Double)
                     }
 
-                    else      -> throw IllegalArgumentException("Unsupported type")
+                    else -> throw IllegalArgumentException("Unsupported type")
                 }
             }
         }
