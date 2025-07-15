@@ -9,8 +9,8 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.bhavikm.calarm" />
-                  <option name="mobileSdkAppId" value="1:66527400428:android:32fdcaab4801d712e0b0c9" />
+                  <option name="appId" value="com.sevenspan.calarm" />
+                  <option name="mobileSdkAppId" value="1:66527400428:android:2cdf9d72f5adfaa1e0b0c9" />
                   <option name="projectId" value="eventreminder-c8fae" />
                   <option name="projectNumber" value="66527400428" />
                 </ConnectionSetting>

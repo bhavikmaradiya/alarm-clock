@@ -23,7 +23,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.bhavikm.calarm"
+    namespace = "com.sevenspan.calarm"
     compileSdk = 36
 
     signingConfigs {
@@ -37,7 +37,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.bhavikm.calarm"
+        applicationId = "com.sevenspan.calarm"
         minSdk = 26
         targetSdk = 36
         versionCode = 2
@@ -62,6 +62,7 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+            isDebuggable = false
         }
     }
     compileOptions {
