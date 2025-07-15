@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,6 +61,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,6 +86,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.core.text.HtmlCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.google.android.material.textview.MaterialTextView
@@ -117,14 +123,17 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
     // Notification Access State
     val isNotificationAccessGranted = remember(context) { isNotificationListenerEnabled(context) }
     var showNotificationAccessDialog by rememberSaveable(isNotificationAccessGranted) {
-        mutableStateOf(!isNotificationAccessGranted)
+        mutableStateOf(false)
     }
 
     val isNotificationPolicyGranted =
         remember(context) { notificationManager.isNotificationPolicyAccessGranted }
     var showNotificationPolicyDialog by rememberSaveable(isNotificationPolicyGranted) {
-        mutableStateOf(!isNotificationPolicyGranted)
+        mutableStateOf(false)
     }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var arePermissionsGranted by remember { mutableStateOf(false) }
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
@@ -177,19 +186,34 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
         )
     }
 
-    LaunchedEffect(key1 = Unit) {
-        if (isNotificationAccessGranted &&
-            permissionState.allRequiredGranted()
-        ) {
-            viewModel.getCalendar(context)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                coroutineScope.launch {
+                    val shouldRefresh = !arePermissionsGranted
+                    arePermissionsGranted = arePermissionsGranted(
+                        context = context,
+                        permissionState = permissionState
+                    ).also { isGranted ->
+                        if (shouldRefresh && isGranted) {
+                            viewModel.getCalendar(context)
+                        }
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+
 
     HomeComposable(
         context = context,
         homeSate = state,
         snackBarHostState = snackBarHostState,
-        permissionState = permissionState,
+        arePermissionsGranted = arePermissionsGranted,
         scope = coroutineScope,
         onUnifiedReEnableClick = {
             if (!isNotificationListenerEnabled(context)) {
@@ -209,10 +233,9 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
             }
         },
         onUnifiedShowManualStepsClick = {
-            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-            intent.data = Uri.fromParts("package", context.packageName, null)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
+            coroutineScope.launch {
+                snackBarHostState.showSnackbar("FAQs are coming soon!")
+            }
         },
         onSyncClick = {
             viewModel.getCalendar(context)
@@ -222,6 +245,13 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
         },
     )
 }
+
+suspend fun arePermissionsGranted(
+    context: Context,
+    permissionState: PermissionState,
+): Boolean =
+    isNotificationListenerEnabled(context)
+    && permissionState.allRequiredGranted()
 
 fun isNotificationListenerEnabled(context: Context): Boolean {
     val packageName = context.packageName
@@ -234,7 +264,6 @@ fun isNotificationListenerEnabled(context: Context): Boolean {
 
 @Composable
 fun ManualPermissionGuidanceUI(
-    warningText: String,
     onReEnableClick: () -> Unit,
     onShowManualStepsClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -250,17 +279,37 @@ fun ManualPermissionGuidanceUI(
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(horizontal = 10.dp, vertical = 16.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = warningText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f), // Text takes available space
+            Icon(
+                imageVector = Icons.Filled.Warning,
+                contentDescription = "Re-enable Permissions",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .weight(0.4f)
+                    .size(20.dp)
             )
+            Spacer(modifier = Modifier.width(2.dp))
+            Column(
+                modifier = Modifier
+                    .height(IntrinsicSize.Min)
+                    .weight(2f)
+            ) {
+                Text(
+                    text = "Action Needed",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+
+                    )
+                Text(
+                    text = "App needs permissions to work properly.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row {
                 // Row for the two IconButtons
                 IconButton(onClick = onReEnableClick) {
@@ -371,7 +420,11 @@ fun Body(homeSate: HomeState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AttendeeInitialsCircle(name: String, modifier: Modifier = Modifier, size: Dp = 24.dp) {
+private fun AttendeeInitialsCircle(
+    name: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 24.dp,
+) {
     val initial = name.firstOrNull()?.uppercaseChar() ?: '?'
     Box(
         modifier = modifier
@@ -595,7 +648,7 @@ private fun isYesterday(targetCalendar: Calendar, currentCalendar: Calendar): Bo
 @Composable
 private fun HomeComposable(
     context: Context,
-    permissionState: PermissionState,
+    arePermissionsGranted: Boolean,
     onUnifiedReEnableClick: () -> Unit,
     onUnifiedShowManualStepsClick: () -> Unit,
     homeSate: HomeState = HomeState(),
@@ -626,14 +679,14 @@ private fun HomeComposable(
                             },
                             onClick = {
                                 scope.launch {
-                                    if (permissionState.allRequiredGranted() &&
+                                    if (arePermissionsGranted &&
                                         isNetworkAvailable(
                                             context,
                                         )
                                     ) {
                                         onSyncClick.invoke()
-                                    } else if (!permissionState.allRequiredGranted()) {
-                                        permissionState.requestPermission()
+                                    } else if (!arePermissionsGranted) {
+                                        onUnifiedReEnableClick.invoke()
                                     } else {
                                         snackBarHostState.showSnackbar(
                                             "Please check your internet connection",
@@ -675,11 +728,12 @@ private fun HomeComposable(
                     .padding(innerPadding)
                     .fillMaxSize(),
             ) {
-                ManualPermissionGuidanceUI(
-                    warningText = "Critical permissions needed. \nTap icons to enable.",
-                    onReEnableClick = onUnifiedReEnableClick,
-                    onShowManualStepsClick = onUnifiedShowManualStepsClick,
-                )
+                if (!arePermissionsGranted) {
+                    ManualPermissionGuidanceUI(
+                        onReEnableClick = onUnifiedReEnableClick,
+                        onShowManualStepsClick = onUnifiedShowManualStepsClick,
+                    )
+                }
                 Body(
                     homeSate = homeSate,
                 )
@@ -876,7 +930,8 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
                                                     val firstPartOfEmail =
                                                         email?.split("@")?.firstOrNull()
                                                     val nameSegmentFromEmail =
-                                                        firstPartOfEmail?.split(".")?.firstOrNull()
+                                                        firstPartOfEmail?.split(".")
+                                                            ?.firstOrNull()
                                                     val capitalizedNameSegment =
                                                         nameSegmentFromEmail
                                                             ?.replaceFirstChar(Char::titlecase)
