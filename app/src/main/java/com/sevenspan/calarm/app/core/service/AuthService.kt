@@ -143,7 +143,10 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
 
         val authorizationRequest = AuthorizationRequest.builder()
             .setRequestedScopes(requestedScopes)
-            .requestOfflineAccess(BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID, true)
+            .requestOfflineAccess(
+                BuildConfig.GOOGLE_SIGN_IN_SERVER_CLIENT_ID,
+                true
+            )
             .build()
 
         return suspendCancellableCoroutine { continuation ->
@@ -203,7 +206,7 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
                 firebaseAuthWithGoogle(idToken)
             }
 
-            is CustomCredential -> {
+            is CustomCredential        -> {
                 if (credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                     val googleIdTokenCredential =
                         GoogleIdTokenCredential.createFrom(credential.data)
@@ -220,7 +223,7 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
                 }
             }
 
-            else -> {
+            else                       -> {
                 Result.failure(
                     Exception(
                         "Not a Google ID Token. Credential type: ${credential::class.java.name}",

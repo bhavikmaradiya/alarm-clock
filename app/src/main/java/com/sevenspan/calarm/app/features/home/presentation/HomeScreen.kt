@@ -133,7 +133,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
     LaunchedEffect(Unit) {
         uiEvent.collect {
             when (val event = it) {
-                is HomeUIEvent.ScheduledEvent -> {
+                is HomeUIEvent.ScheduledEvent          -> {
                     snackBarHostState.showSnackbar("Event scheduled successfully!")
                 }
 
@@ -146,12 +146,12 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
                     }
                 }
 
-                is HomeUIEvent.OnSignInFailure -> {
+                is HomeUIEvent.OnSignInFailure         -> {
                     snackBarHostState.showSnackbar("Sign in failed. Please try again.")
                     onSignOut.invoke()
                 }
 
-                else -> {}
+                else                                   -> {}
             }
         }
     }
@@ -299,8 +299,8 @@ fun NotificationPolicyAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
             text = {
                 Text(
                     "Calarm needs permission to control notification settings. " +
-                        "This allows alarms to sound even when Do Not Disturb is active " +
-                        "and helps manage alarm volume effectively.",
+                    "This allows alarms to sound even when Do Not Disturb is active " +
+                    "and helps manage alarm volume effectively.",
                 )
             },
             confirmButton = {
@@ -336,7 +336,7 @@ fun Body(homeSate: HomeState, modifier: Modifier = Modifier) {
                 Spacer(modifier = Modifier.fillMaxSize())
             }
 
-            HomeStatus.LOADED -> {
+            HomeStatus.LOADED  -> {
                 LazyColumn {
                     items(homeSate.events) { event ->
                         EventItem(
@@ -350,7 +350,7 @@ fun Body(homeSate: HomeState, modifier: Modifier = Modifier) {
                 }
             }
 
-            HomeStatus.ERROR -> {
+            HomeStatus.ERROR   -> {
                 Text(
                     modifier = Modifier.align(Alignment.Center),
                     text = homeSate.error ?: "Something went wrong!",
@@ -359,7 +359,7 @@ fun Body(homeSate: HomeState, modifier: Modifier = Modifier) {
 
             HomeStatus.INITIAL,
             HomeStatus.EMPTY,
-            -> {
+                               -> {
                 Text(
                     modifier = Modifier.align(Alignment.Center),
                     text = "No data found! Try to sync again!",
@@ -416,7 +416,7 @@ fun NotificationAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
             text = {
                 Text(
                     "Want to stay updated even when you're busy or on the move? \n\n" +
-                        "Allow notification access so we can sync your calendar updates even when you're on hustle.",
+                    "Allow notification access so we can sync your calendar updates even when you're on hustle.",
                 )
             },
             confirmButton = {
@@ -454,10 +454,10 @@ fun BatteryOptimizationDialog(showDialog: Boolean, onDismiss: () -> Unit) {
             text = {
                 Text(
                     "For Calarm to work reliably and ensure your alarms " +
-                        "and calendar updates are always on time, " +
-                        "please disable battery optimizations for the app.\n\n" +
-                        "This helps prevent the system from closing the app " +
-                        "or delaying its tasks.",
+                    "and calendar updates are always on time, " +
+                    "please disable battery optimizations for the app.\n\n" +
+                    "This helps prevent the system from closing the app " +
+                    "or delaying its tasks.",
                 )
             },
             confirmButton = {
@@ -555,18 +555,18 @@ private fun formatLastSyncedTime(timestamp: Long?): String {
     val calendarTimestamp = Calendar.getInstance().apply { timeInMillis = timestamp }
 
     return when {
-        minutes < 1 -> "Just now"
-        minutes < 60 -> if (minutes == 1L) {
+        minutes < 1                                 -> "Just now"
+        minutes < 60                                -> if (minutes == 1L) {
             "$minutes minute ago"
         } else {
             "$minutes minutes ago"
         }
 
         hours < 24 &&
-            calendarNow.get(Calendar.DAY_OF_YEAR) == calendarTimestamp.get(Calendar.DAY_OF_YEAR) &&
-            calendarNow.get(
-                Calendar.YEAR,
-            ) == calendarTimestamp.get(Calendar.YEAR) -> {
+        calendarNow.get(Calendar.DAY_OF_YEAR) == calendarTimestamp.get(Calendar.DAY_OF_YEAR) &&
+        calendarNow.get(
+            Calendar.YEAR,
+        ) == calendarTimestamp.get(Calendar.YEAR)   -> {
             val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
             "Today at ${sdf.format(Date(timestamp))}"
         }
@@ -576,7 +576,7 @@ private fun formatLastSyncedTime(timestamp: Long?): String {
             "Yesterday at ${sdf.format(Date(timestamp))}"
         }
 
-        else -> {
+        else                                        -> {
             val sdf = SimpleDateFormat("MMM dd, yyyy h:mm a", Locale.getDefault())
             sdf.format(Date(timestamp))
         }
@@ -587,9 +587,9 @@ private fun isYesterday(targetCalendar: Calendar, currentCalendar: Calendar): Bo
     val tempCalendar = currentCalendar.clone() as Calendar
     tempCalendar.add(Calendar.DAY_OF_YEAR, -1)
     return tempCalendar.get(Calendar.YEAR) == targetCalendar.get(Calendar.YEAR) &&
-        tempCalendar.get(
-            Calendar.DAY_OF_YEAR,
-        ) == targetCalendar.get(Calendar.DAY_OF_YEAR)
+           tempCalendar.get(
+               Calendar.DAY_OF_YEAR,
+           ) == targetCalendar.get(Calendar.DAY_OF_YEAR)
 }
 
 @Composable
@@ -723,18 +723,19 @@ private fun formatRemainingTime(startTimeMillis: Long): String {
     val calendarNow = Calendar.getInstance()
 
     return when {
-        minutes < 60 -> "In $minutes minutes"
+        minutes < 60                                                                    -> "In $minutes minutes"
         hours < 24 &&
-            calendarStart.get(
-                Calendar.DAY_OF_YEAR,
-            ) == calendarNow.get(Calendar.DAY_OF_YEAR) -> "In $hours hours"
+        calendarStart.get(
+            Calendar.DAY_OF_YEAR,
+        ) == calendarNow.get(Calendar.DAY_OF_YEAR)                                      -> "In $hours hours"
+
         days.toInt() == 0 &&
-            calendarStart.get(Calendar.DAY_OF_YEAR) > calendarNow.get(Calendar.DAY_OF_YEAR) -> {
+        calendarStart.get(Calendar.DAY_OF_YEAR) > calendarNow.get(Calendar.DAY_OF_YEAR) -> {
             val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
             "Tomorrow at ${sdf.format(Date(startTimeMillis))}"
         }
 
-        else -> {
+        else                                                                            -> {
             val remainingHoursInDay = hours % 24
             val daysString = "$days day${if (days > 1) "s" else ""}"
             val hoursString = if (remainingHoursInDay > 0) " $remainingHoursInDay hours" else ""
@@ -882,8 +883,8 @@ fun EventItem(event: CalendarEvent, modifier: Modifier = Modifier) {
 
                                                     val actualDisplayName = attendee.displayName
                                                     val baseName = actualDisplayName
-                                                        ?: capitalizedNameSegment
-                                                        ?: "Unknown"
+                                                                   ?: capitalizedNameSegment
+                                                                   ?: "Unknown"
 
                                                     val isNotLastAttendee =
                                                         i != validAttendees.size - 1
