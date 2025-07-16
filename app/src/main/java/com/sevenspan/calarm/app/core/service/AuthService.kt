@@ -42,7 +42,7 @@ interface AuthService {
 
     suspend fun updateFcmToken(token: String? = null)
 
-    suspend fun isPermissionNeeded(): Boolean
+    suspend fun isScopePermissionNeeded(): Boolean
     suspend fun subscribeToCalendarWebhook(authCode: String? = null): Result<String>
     suspend fun fetchBaseUrlFromFirebase(): String?
 }
@@ -63,8 +63,6 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
         if (currentUser != null) {
             auth.signOut()
         }
-        /*googleSignInClient?.signOut()
-        googleSignInClient = null*/
     }
 
     override suspend fun isUserSignedIn(): Boolean = isUserSignedIn && isRefreshTokenAvailable()
@@ -166,7 +164,7 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
         }
     }
 
-    override suspend fun isPermissionNeeded(): Boolean {
+    override suspend fun isScopePermissionNeeded(): Boolean {
         val userId = currentUser?.uid ?: return true
         val response = ApiClient.apiService
             .shouldShowAuthScreen(userId = userId)

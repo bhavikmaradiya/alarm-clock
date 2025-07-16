@@ -44,7 +44,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setContentTitle(it.title)
                     .setContentText(it.body)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setPriority(NotificationCompat.PRIORITY_MAX)
                     .setAutoCancel(true)
 
             notificationManager.notify(1001, notificationBuilder.build())

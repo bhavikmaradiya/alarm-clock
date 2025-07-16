@@ -29,8 +29,8 @@ class SignInRepositoryImpl(
         )
 
     override suspend fun getGoogleSignInIntent(activity: Activity): PendingIntent? {
-        val shouldShowCalendarPermission = authService.isPermissionNeeded()
-        if (!shouldShowCalendarPermission) {
+        val shouldAskForCalendarScope = authService.isScopePermissionNeeded()
+        if (!shouldAskForCalendarScope) {
             return null
         }
         return authService.getGoogleSignInIntent(activity)
