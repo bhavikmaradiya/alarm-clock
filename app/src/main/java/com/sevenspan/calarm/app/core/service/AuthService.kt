@@ -211,9 +211,7 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
                     val googleIdTokenCredential =
                         GoogleIdTokenCredential.createFrom(credential.data)
                     Result.success(googleIdTokenCredential.idToken)
-                    firebaseAuthWithGoogle(
-                        googleIdTokenCredential.idToken,
-                    )
+                    firebaseAuthWithGoogle(googleIdTokenCredential.idToken)
                 } else {
                     Result.failure(
                         Exception(
@@ -265,6 +263,7 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
                 )
             val response = ApiClient.apiService
                 .subscribeToCalendarChanges(
+                    userId = userId,
                     request = requestBody,
                 )
 

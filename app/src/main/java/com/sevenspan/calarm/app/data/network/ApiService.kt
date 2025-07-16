@@ -15,6 +15,7 @@ interface ApiService {
 
     @POST("calendar/subscribe")
     suspend fun subscribeToCalendarChanges(
+        @Header("X-User-Id") userId: String,
         @Body request: AuthCodeRequest,
     ): Response<SubscribeCalendarResponse>
 

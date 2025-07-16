@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.sevenspan.calarm.app.features.home.presentation.isNotificationListenerEnabled
 
 @Composable
@@ -72,7 +73,6 @@ fun SettingsScreen() {
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Notification Toggle Setting
             Row(
                 modifier = Modifier
                     .fillMaxWidth(),
@@ -105,7 +105,6 @@ fun SettingsScreen() {
 
             HorizontalDivider()
 
-            // Reminder Delay Setting
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -153,7 +152,6 @@ fun SettingsScreen() {
 
             HorizontalDivider()
 
-            // Calendar Fetch Days Setting
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -208,13 +206,17 @@ fun NotificationAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
     if (showDialog) {
         AlertDialog(
             onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            ),
             title = {
                 Text("Calendar Updates")
             },
             text = {
                 Text(
                     "Want to stay updated even when you're busy or on the move? \n\n" +
-                        "Allow notification access so we can sync your calendar updates even when you're on hustle.",
+                    "Allow notification access so we can sync your calendar updates even when you're on hustle.",
                 )
             },
             confirmButton = {
@@ -226,11 +228,6 @@ fun NotificationAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
                     onDismiss()
                 }) {
                     Text("Allow Access")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("Maybe Later")
                 }
             },
         )

@@ -9,6 +9,7 @@ import android.net.Uri
 import android.provider.Settings
 import android.text.TextUtils
 import android.text.method.LinkMovementMethod
+import android.util.Log
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -134,6 +135,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
 
     val lifecycleOwner = LocalLifecycleOwner.current
     var arePermissionsGranted by remember { mutableStateOf(false) }
+    var shouldAskForPermissions by remember { mutableStateOf(false) }
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
@@ -165,6 +167,25 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
         }
     }
 
+    LaunchedEffect(key1 = shouldAskForPermissions) {
+        if (shouldAskForPermissions) {
+            askForRemainingPermissions(
+                context = context,
+                notificationManager = notificationManager,
+                permissionState = permissionState,
+                onNotificationListenerPermission = {
+                    showNotificationAccessDialog = true
+                },
+                onNotificationPolicyPermission = {
+                    showNotificationPolicyDialog = true
+                },
+                onPermissionPrompted = {
+                    shouldAskForPermissions = false
+                }
+            )
+        }
+    }
+
     if (showNotificationAccessDialog &&
         !isNotificationAccessGranted
     ) {
@@ -175,6 +196,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
             },
         )
     }
+
     if (showNotificationPolicyDialog &&
         !isNotificationPolicyGranted
     ) {
@@ -195,8 +217,27 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
                         context = context,
                         permissionState = permissionState
                     ).also { isGranted ->
+                        if (isGranted && shouldAskForPermissions) {
+                            shouldAskForPermissions = false
+                        }
                         if (shouldRefresh && isGranted) {
                             viewModel.getCalendar(context)
+                        }
+                        if (!isGranted && shouldAskForPermissions) {
+                            askForRemainingPermissions(
+                                context = context,
+                                notificationManager = notificationManager,
+                                permissionState = permissionState,
+                                onNotificationListenerPermission = {
+                                    showNotificationAccessDialog = true
+                                },
+                                onNotificationPolicyPermission = {
+                                    showNotificationPolicyDialog = true
+                                },
+                                onPermissionPrompted = {
+                                    shouldAskForPermissions = false
+                                }
+                            )
                         }
                     }
                 }
@@ -216,25 +257,11 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
         arePermissionsGranted = arePermissionsGranted,
         scope = coroutineScope,
         onUnifiedReEnableClick = {
-            if (!isNotificationListenerEnabled(context)) {
-                showNotificationAccessDialog = true
-                return@HomeComposable
-            }
-            if (!notificationManager.isNotificationPolicyAccessGranted) {
-                showNotificationPolicyDialog = true
-                return@HomeComposable
-            }
-            coroutineScope.launch {
-                if (!permissionState.allRequiredGranted()) {
-                    permissionState.requestPermission()
-                } else {
-                    snackBarHostState.showSnackbar("All permissions granted!")
-                }
-            }
+            shouldAskForPermissions = true
         },
         onUnifiedShowManualStepsClick = {
             coroutineScope.launch {
-                snackBarHostState.showSnackbar("FAQs are coming soon!")
+                snackBarHostState.showSnackbar("FAQs are coming soon! Stay tuned!")
             }
         },
         onSyncClick = {
@@ -246,12 +273,35 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
     )
 }
 
+suspend fun askForRemainingPermissions(
+    context: Context,
+    notificationManager: NotificationManager,
+    permissionState: PermissionState,
+    onNotificationListenerPermission: () -> Unit,
+    onNotificationPolicyPermission: () -> Unit,
+    onPermissionPrompted: () -> Unit,
+) {
+    if (!notificationManager.isNotificationPolicyAccessGranted) {
+        onNotificationPolicyPermission.invoke()
+        return
+    }
+    if (!isNotificationListenerEnabled(context)) {
+        onNotificationListenerPermission.invoke()
+        return
+    }
+    if (!permissionState.allRequiredGranted()) {
+        permissionState.requestPermission()
+    }
+    onPermissionPrompted.invoke()
+}
+
 suspend fun arePermissionsGranted(
     context: Context,
     permissionState: PermissionState,
 ): Boolean =
-    isNotificationListenerEnabled(context)
-    && permissionState.allRequiredGranted()
+    isNotificationListenerEnabled(context) &&
+//    notificationManager.isNotificationPolicyAccessGranted &&
+    permissionState.allRequiredGranted()
 
 fun isNotificationListenerEnabled(context: Context): Boolean {
     val packageName = context.packageName
@@ -339,8 +389,8 @@ fun NotificationPolicyAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
         AlertDialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
             ),
             title = {
                 Text("Grant Sound & Vibration Access")
@@ -358,7 +408,7 @@ fun NotificationPolicyAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
                     if (intent.resolveActivity(context.packageManager) != null) {
                         context.startActivity(intent)
                     } else {
-                        android.util.Log.e(
+                        Log.e(
                             "NotificationPolicy",
                             "Could not open Notification Policy settings.",
                         )
@@ -366,11 +416,6 @@ fun NotificationPolicyAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
                     onDismiss() // Dismiss the dialog after attempting to open settings
                 }) {
                     Text("Open Settings")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("Later")
                 }
             },
         )
@@ -482,11 +527,6 @@ fun NotificationAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
                     Text("Allow Access")
                 }
             },
-            dismissButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("Later")
-                }
-            },
         )
     }
 }
@@ -522,7 +562,7 @@ fun BatteryOptimizationDialog(showDialog: Boolean, onDismiss: () -> Unit) {
                     if (intent.resolveActivity(context.packageManager) != null) {
                         context.startActivity(intent)
                     } else {
-                        android.util.Log.e(
+                        Log.e(
                             "BatteryOptimization",
                             "Could not open battery optimization settings.",
                         )
