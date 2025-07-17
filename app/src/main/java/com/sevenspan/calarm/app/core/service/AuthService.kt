@@ -65,7 +65,16 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
         }
     }
 
-    override suspend fun isUserSignedIn(): Boolean = isUserSignedIn && isRefreshTokenAvailable()
+    override suspend fun isUserSignedIn(): Boolean {
+        if (isUserSignedIn) {
+            if (!isRefreshTokenAvailable()) {
+                signOut()
+            } else {
+                return true
+            }
+        }
+        return false
+    }
 
     private suspend fun removeRefreshToken() {
         val user = currentUser ?: return
@@ -107,7 +116,7 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
                     return false
                 }
                 return localRefreshToken.compareTo(
-                    refreshToken,
+                    other = refreshToken,
                     ignoreCase = false,
                 ) == 0
             }

@@ -143,7 +143,10 @@ fun PermissionsInfoDialog(
 }
 
 @Composable
-fun SignInScreen(viewModel: SignInViewModel = koinViewModel(), onAuthSuccess: () -> Unit) {
+fun SignInScreen(
+    viewModel: SignInViewModel = koinViewModel(),
+    onAuthSuccess: () -> Unit,
+) {
     val activity = LocalActivity.current as Activity
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
@@ -191,7 +194,9 @@ fun SignInScreen(viewModel: SignInViewModel = koinViewModel(), onAuthSuccess: ()
 
     PermissionsInfoDialog(
         showDialog = showPermissionsInfoDialog,
-        onDismiss = { showPermissionsInfoDialog = false }
+        onDismiss = {
+            showPermissionsInfoDialog = false
+        }
     )
 
     SignInComposable(
@@ -238,7 +243,11 @@ fun SignInComposable(
 }
 
 @Composable
-fun Body(signInState: SignInState, onSignInClick: () -> Unit, modifier: Modifier = Modifier) {
+fun Body(
+    signInState: SignInState,
+    onSignInClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier
             .fillMaxSize(),

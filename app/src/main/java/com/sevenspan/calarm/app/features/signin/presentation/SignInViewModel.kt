@@ -23,40 +23,48 @@ class SignInViewModel(private val signInRepository: SignInRepository) : ViewMode
     val uiEvent: Flow<SignInEvent> = _uiEvent.receiveAsFlow()
 
     fun signIn(context: Activity) {
-        _state.update { it.copy(status = SignInStatus.LOADING) }
+        _state.update {
+            it.copy(status = SignInStatus.LOADING)
+        }
         viewModelScope.launch {
-            signInRepository.signIn(context).fold(
-                onFailure = {
-                    _state.update { state ->
-                        state.copy(status = SignInStatus.ERROR, error = it.message)
-                    }
-                },
-                onSuccess = {
-                    val intent = signInRepository.getGoogleSignInIntent(context)
-                    if (intent != null) {
-                        _uiEvent.send(SignInEvent.OnSignInIntentGenerated(intent))
-                    } else {
-                        signInRepository.subscribeToCalendarWebhook().onSuccess {
-                            _state.update { state ->
-                                state.copy(status = SignInStatus.SUCCESS)
-                            }
-                        }.onFailure {
-                            _state.update { state ->
-                                state.copy(
-                                    status = SignInStatus.ERROR,
-                                    error = it.message,
-                                )
-                            }
+            signInRepository.signIn(context)
+                .fold(
+                    onFailure = {
+                        _state.update { state ->
+                            state.copy(status = SignInStatus.ERROR, error = it.message)
                         }
-                    }
-                },
-            )
+                    },
+                    onSuccess = {
+                        val intent = signInRepository.getGoogleSignInIntent(context)
+                        if (intent != null) {
+                            _uiEvent.send(SignInEvent.OnSignInIntentGenerated(intent))
+                        } else {
+                            signInRepository.subscribeToCalendarWebhook()
+                                .onSuccess {
+                                    _state.update { state ->
+                                        state.copy(status = SignInStatus.SUCCESS)
+                                    }
+                                }
+                                .onFailure {
+                                    _state.update { state ->
+                                        state.copy(
+                                            status = SignInStatus.ERROR,
+                                            error = it.message,
+                                        )
+                                    }
+                                }
+                        }
+                    },
+                )
         }
     }
 
     fun processResult(activity: Activity, result: ActivityResult) {
         viewModelScope.launch {
-            signInRepository.processAuthCode(activity, result).fold(
+            signInRepository.processAuthCode(
+                activity = activity,
+                result = result
+            ).fold(
                 onFailure = {
                     _state.update { state ->
                         state.copy(
@@ -67,7 +75,10 @@ class SignInViewModel(private val signInRepository: SignInRepository) : ViewMode
                 },
                 onSuccess = {
                     _state.update { state ->
-                        state.copy(status = SignInStatus.SUCCESS, userData = it)
+                        state.copy(
+                            status = SignInStatus.SUCCESS,
+                            userData = it
+                        )
                     }
                 },
             )
