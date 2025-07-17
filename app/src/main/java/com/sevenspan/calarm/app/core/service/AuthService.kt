@@ -266,7 +266,6 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
             val requestBody =
                 AuthCodeRequest(
                     authCode = authCode,
-                    userId = userId,
                 )
             val response = ApiClient.apiService
                 .subscribeToCalendarChanges(

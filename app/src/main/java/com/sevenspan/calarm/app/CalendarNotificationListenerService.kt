@@ -32,13 +32,16 @@ class CalendarNotificationListenerService : NotificationListenerService() {
         Log.d("NotificationListener", "📢 Notification posted ${sbn?.packageName}")
         val notification = sbn?.notification ?: return
         val extras = notification.extras
-        val title = extras.getString(Notification.EXTRA_TITLE)
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
         val channelId = notification.channelId
 
-        if (sbn.packageName == applicationContext.packageName &&
-            (title == "Calendar updated" || channelId == "calendar_updates")
+        if (sbn.packageName.contains("calendar") ||
+            (sbn.packageName == applicationContext.packageName &&
+             (title == "Calendar updated" || channelId == "calendar_updates"))
         ) {
-            coroutineScope.launch { workScheduler.enqueueCalendarSync() }
+            coroutineScope.launch {
+                workScheduler.enqueueCalendarSync()
+            }
         }
     }
 

@@ -5,8 +5,6 @@ import com.google.gson.annotations.SerializedName
 data class AuthCodeRequest(
     @SerializedName("authCode")
     val authCode: String?,
-    @SerializedName("userId")
-    val userId: String,
 )
 
 data class SubscribeCalendarResponse(
