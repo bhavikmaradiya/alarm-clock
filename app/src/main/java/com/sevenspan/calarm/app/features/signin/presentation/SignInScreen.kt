@@ -5,23 +5,32 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,29 +42,55 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sevenspan.calarm.CalarmApp.Companion.isNetworkAvailable
+import com.sevenspan.calarm.R
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PermissionsInfoDialog(
-    showDialog: Boolean,
+fun PermissionsInfoBottomSheet(
+    showSheet: Boolean,
     onDismiss: () -> Unit,
 ) {
-    if (showDialog) {
-        AlertDialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    if (showSheet) {
+        ModalBottomSheet(
             onDismissRequest = onDismiss,
-            modifier = Modifier.padding(vertical = LocalConfiguration.current.screenHeightDp.dp * 0.12f),
-            title = {
-                Text("How Calarm Works With Your Google Account")
-            },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            sheetState = sheetState,
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp, vertical = 16.dp) // Adjusted padding
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "How Calarm Works With Your Google Account",
+                    style = MaterialTheme.typography.titleLarge, // Using a title style
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Scrollable content from the original dialog
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 400.dp) // Set a max height for the scrollable area
+                        .verticalScroll(rememberScrollState())
+                ) {
                     Text(
                         "To bring you smart, calendar-aware alarms, Calarm needs to connect with your Google Account. Here's a clear breakdown of what we access and why it's important for the app's features:",
                         fontSize = 14.sp
@@ -126,19 +161,65 @@ fun PermissionsInfoDialog(
                         fontSize = 15.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "We are committed to protecting your personal information. Calarm uses these permissions only to provide its core features and improve your experience. We do not sell your data or share your personal calendar details with any third-party advertisers. You have full control and can review or revoke these permissions at any time through your Google Account settings.",
-                        fontSize = 14.sp,
-                        lineHeight = 18.sp
+
+                    // The ClickableText for Privacy Policy goes here
+                    val uriHandler = LocalUriHandler.current
+                    val privacyPolicyUrl = "https://your.app/privacy" // <-- REPLACE
+                    val linkText = "Privacy Policy"
+                    val annotatedString = buildAnnotatedString {
+                        append("We are committed to protecting your personal information. Calarm uses these permissions only to provide its core features and improve your experience. We do not sell your data or share your personal calendar details with any third-party advertisers. You have full control and can review or revoke these permissions at any time through your Google Account settings. Please review our ")
+                        pushStringAnnotation(tag = "PRIVACY_POLICY", annotation = privacyPolicyUrl)
+                        withStyle(
+                            style = SpanStyle(
+                                color = MaterialTheme.colorScheme.primary,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        ) {
+                            append(linkText)
+                        }
+                        pop()
+                        append(" for more details.")
+                    }
+                    val textLayoutResultState =
+                        remember { mutableStateOf<TextLayoutResult?>(null) } // Re-declare if not accessible
+
+                    Text( // Changed from ClickableText based on previous interactions
+                        text = annotatedString,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 14.sp,
+                            lineHeight = 18.sp
+                        ), // Ensure style is appropriate
+                        onTextLayout = { textLayoutResult ->
+                            textLayoutResultState.value = textLayoutResult
+                        },
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures { offset ->
+                                textLayoutResultState.value?.let { layoutResult ->
+                                    val position = layoutResult.getOffsetForPosition(offset)
+                                    annotatedString.getStringAnnotations(
+                                        tag = "PRIVACY_POLICY",
+                                        start = position,
+                                        end = position
+                                    )
+                                        .firstOrNull()?.let { annotation ->
+                                            uriHandler.openUri(annotation.item)
+                                        }
+                                }
+                            }
+                        }
                     )
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = onDismiss) {
+
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
                     Text("Got it!")
                 }
+                Spacer(modifier = Modifier.height(8.dp)) // Space at the very bottom of the sheet content
             }
-        )
+        }
     }
 }
 
@@ -192,8 +273,8 @@ fun SignInScreen(
     }
 
 
-    PermissionsInfoDialog(
-        showDialog = showPermissionsInfoDialog,
+    PermissionsInfoBottomSheet(
+        showSheet = showPermissionsInfoDialog,
         onDismiss = {
             showPermissionsInfoDialog = false
         }
@@ -226,16 +307,16 @@ fun SignInComposable(
     onSignInClick: () -> Unit = {},
 ) {
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color(0xFFFFFAEC)),
         snackbarHost = { SnackbarHost(snackBarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text("Sign In") },
-            )
-        },
     ) { innerPadding ->
+
         Body(
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier
+                .padding(innerPadding)
+                .background(color = Color(0xFFFFFAEC)),
             signInState = signInState,
             onSignInClick = onSignInClick,
         )
@@ -248,6 +329,9 @@ fun Body(
     onSignInClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val privacyPolicyUrl = context.getString(R.string.privacy_policy)
     Box(
         modifier
             .fillMaxSize(),
@@ -262,11 +346,73 @@ fun Body(
 
             SignInStatus.ERROR,
             SignInStatus.INITIAL,
-                                 -> Button(
-                modifier = Modifier.align(Alignment.Center),
-                onClick = onSignInClick,
+                                 -> Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.align(Alignment.Center)
             ) {
-                Text("Sign in with Google")
+                Spacer(modifier = Modifier.weight(.25f))
+                Image(
+                    painterResource(R.drawable.app_icon),
+                    contentDescription = "App Icon",
+                    modifier = Modifier.size(200.dp)
+                )
+                Text(
+                    text = "Your calendar’s smarter sidechick\nSync. Remind. Show Up. That’s Calarm",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Button(
+                    onClick = onSignInClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 25.dp),
+                ) {
+                    Text("Sign in with Google")
+                }
+                Spacer(modifier = Modifier.height(17.dp))
+                val linkText = "Privacy Policy"
+
+                val annotatedString = buildAnnotatedString {
+                    append("By proceeding, you agree to our ")
+                    pushStringAnnotation(tag = "URL", annotation = privacyPolicyUrl)
+                    withStyle(
+                        style = SpanStyle(
+                            color = MaterialTheme.colorScheme.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    ) {
+                        append(linkText)
+                    }
+                    pop()
+                }
+
+                val textLayoutResultState = remember { mutableStateOf<TextLayoutResult?>(null) }
+
+                Text(
+                    text = annotatedString,
+                    style = MaterialTheme.typography.bodyMedium,
+                    onTextLayout = { textLayoutResult ->
+                        textLayoutResultState.value = textLayoutResult
+                    },
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            textLayoutResultState.value?.let { layoutResult ->
+                                val position = layoutResult.getOffsetForPosition(offset)
+                                annotatedString.getStringAnnotations(
+                                    tag = "URL",
+                                    start = position,
+                                    end = position
+                                )
+                                    .firstOrNull()?.let { annotation ->
+                                        uriHandler.openUri(annotation.item)
+                                    }
+                            }
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.weight(.1f))
             }
 
             SignInStatus.SUCCESS -> {

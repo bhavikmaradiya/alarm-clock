@@ -36,10 +36,10 @@ class CalarmApp :
             val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
 
             val hasNetwork = when {
-                activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+                activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)     -> true
                 activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
                 activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-                else -> false
+                else                                                               -> false
             }
 
             if (!hasNetwork) return false
@@ -79,7 +79,8 @@ class CalarmApp :
                 title = "Alarm running",
                 message = "Tap to open",
                 channelName = "Alarm Notifications",
-            )
+
+                )
 
             activityClass = AlarmActivity::class.java
 

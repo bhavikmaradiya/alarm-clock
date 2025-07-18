@@ -321,7 +321,7 @@ fun ManualPermissionGuidanceUI(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 24.dp, vertical = 8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant, // Or a warning color
@@ -437,7 +437,7 @@ fun Body(homeSate: HomeState, modifier: Modifier = Modifier) {
                             event = event,
                             modifier = Modifier.padding(
                                 vertical = 12.dp,
-                                horizontal = 20.dp,
+                                horizontal = 24.dp,
                             ),
                         )
                     }
@@ -709,6 +709,7 @@ private fun HomeComposable(
                     colors = TopAppBarDefaults.topAppBarColors().copy(
                         containerColor = MaterialTheme.colorScheme.background,
                     ),
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp),
                     actions = {
                         FilledTonalIconButton(
                             content = {

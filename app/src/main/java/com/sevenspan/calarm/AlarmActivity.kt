@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -66,6 +67,7 @@ import com.google.firebase.auth.auth
 import com.meticha.triggerx.TriggerXActivity
 import com.sevenspan.calarm.app.core.model.CalendarEvent
 import com.sevenspan.calarm.app.core.model.CalendarEventBundleConverter.toCalendarEvent
+import com.sevenspan.calarm.ui.theme.CalarmTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -132,181 +134,191 @@ class AlarmActivity : TriggerXActivity() {
             bundle?.toCalendarEvent()
         }
 
-        Box(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        color = Color.White,
-                        shape = RoundedCornerShape(32.dp),
-                    )
-                    .padding(32.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
+        CalarmTheme {
+            Box(
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Icon(
-                    imageVector = Icons.Default.AlarmOn,
-                    contentDescription = "Trigger Icon",
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(80.dp),
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                if (calendarEvent != null) {
-                    Text(
-                        text = calendarEvent.eventName,
-                        fontSize = 27.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.secondary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            color = MaterialTheme.colorScheme.background,
+                            shape = RoundedCornerShape(32.dp),
+                        )
+                        .padding(32.dp)
+                        .verticalScroll(rememberScrollState())
+                        .align(Alignment.Center),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AlarmOn,
+                        contentDescription = "Trigger Icon",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(80.dp),
                     )
 
-                    Spacer(modifier = Modifier.height(35.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
-                    // Row for Date and Time
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        EventDetailItem(
-                            iconVector = Icons.Filled.CalendarMonth,
-                            label = "Date",
-                            value = dateFormatter.format(Date(calendarEvent.startTimeMillis)),
-                            modifier = Modifier.weight(1f),
+                    if (calendarEvent != null) {
+                        Text(
+                            text = calendarEvent.eventName,
+                            fontSize = 27.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        EventDetailItem(
-                            iconVector = Icons.Filled.Schedule,
-                            label = "Time",
-                            value = "${
-                                timeFormatter.format(
-                                    Date(calendarEvent.startTimeMillis),
-                                )
-                            } - ${
-                                timeFormatter.format(Date(calendarEvent.endTimeMillis))
-                            }",
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(35.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        EventDetailItem(
-                            iconVector = Icons.Filled.LocationOn,
-                            label = "Location",
-                            value = calendarEvent.location?.takeIf { it.isNotBlank() }
-                                ?: "Not specified",
-                            modifier = Modifier.weight(1f),
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        val attendee = calendarEvent.attendees?.find { it.organizer == true }
-
-                        val hostValue =
-                            attendee?.displayName ?: (
-                                attendee?.email?.split("@")
-                                    ?.first()?.split(".")
-                                    ?.first()
-                                    ?.replaceFirstChar(Char::titlecase)
-                                    ?: "Unknown"
-                                )
-                        EventDetailItem(
-                            iconVector = Icons.Filled.Person,
-                            label = "Host",
-                            value = hostValue,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-
-                    calendarEvent.notes?.takeIf { it.isNotBlank() }?.let { notes ->
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row {
+                        // Row for Date and Time
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
                             EventDetailItem(
-                                iconVector = Icons.Filled.Notes,
-                                label = "Notes",
-                                value = notes,
+                                iconVector = Icons.Filled.CalendarMonth,
+                                label = "Date",
+                                value = dateFormatter.format(Date(calendarEvent.startTimeMillis)),
                                 modifier = Modifier.weight(1f),
-                            ) {
-                                ExpandableHtmlText(
-                                    notes,
-                                    collapsedMaxLines = 5,
-                                )
-                            }
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            EventDetailItem(
+                                iconVector = Icons.Filled.Schedule,
+                                label = "Time",
+                                value = "${
+                                    timeFormatter.format(
+                                        Date(calendarEvent.startTimeMillis),
+                                    )
+                                } - ${
+                                    timeFormatter.format(Date(calendarEvent.endTimeMillis))
+                                }",
+                                modifier = Modifier.weight(1f),
+                            )
                         }
-                    }
 
-                    calendarEvent.attendees?.let { attendees ->
-                        val validAttendees =
-                            attendees.filter { !(it.resource ?: false) && it.email != null }
-                        if (validAttendees.isNotEmpty()) {
-                            val values = validAttendees.mapIndexed { i, attendee ->
-                                val displayName = (
-                                    attendee.displayName ?: (
-                                        attendee.email?.split("@")
-                                            ?.first()?.split(".")
-                                            ?.first()
-                                            ?.replaceFirstChar(
-                                                Char::titlecase,
-                                            )
-                                            ?: "Unknown"
-                                        )
-                                    ) +
-                                    if (i !=
-                                        validAttendees.size -
-                                        1
-                                    ) {
-                                        ","
-                                    } else {
-                                        ""
-                                    }
-                                return@mapIndexed displayName
-                            }.joinToString(" ")
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                                Row {
-                                    EventDetailItem(
-                                        iconVector = Icons.Filled.People,
-                                        label = "Attendees",
-                                        value = values,
-                                        modifier = Modifier.weight(1f),
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            EventDetailItem(
+                                iconVector = Icons.Filled.LocationOn,
+                                label = "Location",
+                                value = calendarEvent.location?.takeIf { it.isNotBlank() }
+                                        ?: "Not specified",
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            val attendee = calendarEvent.attendees?.find { it.organizer == true }
+
+                            val hostValue =
+                                attendee?.displayName ?: (
+                                    attendee?.email?.split("@")
+                                        ?.first()?.split(".")
+                                        ?.first()
+                                        ?.replaceFirstChar(Char::titlecase)
+                                    ?: "Unknown"
+                                                         )
+                            EventDetailItem(
+                                iconVector = Icons.Filled.Person,
+                                label = "Host",
+                                value = hostValue,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+
+                        calendarEvent.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row {
+                                EventDetailItem(
+                                    iconVector = Icons.Filled.Notes,
+                                    label = "Notes",
+                                    value = notes,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    ExpandableHtmlText(
+                                        notes,
+                                        collapsedMaxLines = 5,
                                     )
                                 }
                             }
                         }
+
+                        calendarEvent.attendees?.let { attendees ->
+                            val validAttendees =
+                                attendees.filter { !(it.resource ?: false) && it.email != null }
+                            if (validAttendees.isNotEmpty()) {
+                                val values = validAttendees.mapIndexed { i, attendee ->
+                                    val displayName = (
+                                                          attendee.displayName ?: (
+                                                              attendee.email?.split("@")
+                                                                  ?.first()?.split(".")
+                                                                  ?.first()
+                                                                  ?.replaceFirstChar(
+                                                                      Char::titlecase,
+                                                                  )
+                                                              ?: "Unknown"
+                                                                                  )
+                                                      ) +
+                                                      if (i !=
+                                                          validAttendees.size -
+                                                          1
+                                                      ) {
+                                                          ","
+                                                      } else {
+                                                          ""
+                                                      }
+                                    return@mapIndexed displayName
+                                }.joinToString(" ")
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Row {
+                                        EventDetailItem(
+                                            iconVector = Icons.Filled.People,
+                                            label = "Attendees",
+                                            value = values,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Unavailable",
+                            fontSize = 27.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Text(
+                            text = "Could not load event details.",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF333333),
+                            textAlign = TextAlign.Center,
+                        )
                     }
-                } else {
-                    Text(
-                        text = "Unavailable",
-                        fontSize = 27.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.secondary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Text(
-                        text = "Could not load event details.",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF333333),
-                        textAlign = TextAlign.Center,
-                    )
-                }
-                Spacer(modifier = Modifier.height(35.dp))
-                Button(
-                    onClick = { finish() },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = "STOP")
+                    Spacer(modifier = Modifier.height(35.dp))
+                    Button(
+                        onClick = { finish() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = Color.White,
+
+                            ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                        //                        .padding(horizontal = 25.dp),
+                    ) {
+                        Text(text = "STOP")
+                    }
                 }
             }
         }
