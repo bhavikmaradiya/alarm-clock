@@ -91,7 +91,7 @@ class HomeViewModel(
                         val pairOfEvents = calendarEvents.mapNotNull { event ->
                             val reminderTimeMillis =
                                 event.startTimeMillis -
-                                    (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
+                                (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
                             if (reminderTimeMillis > System.currentTimeMillis()) {
                                 Pair(event.id, reminderTimeMillis)
                             } else {
@@ -119,12 +119,14 @@ class HomeViewModel(
                 if (intent != null) {
                     _uiEvent.send(HomeUIEvent.OnSignInIntentGenerated(intent))
                 } else {
-                    signInRepository.subscribeToCalendarWebhook().onSuccess {
-                        notifyUserInfo()
-                        getCalendar(context)
-                    }.onFailure {
-                        _uiEvent.send(HomeUIEvent.OnSignInFailure)
-                    }
+                    signInRepository.subscribeToCalendarWebhook()
+                        .onSuccess {
+                            notifyUserInfo()
+                            getCalendar(context)
+                        }
+                        .onFailure {
+                            _uiEvent.send(HomeUIEvent.OnSignInFailure)
+                        }
                 }
             }
         }

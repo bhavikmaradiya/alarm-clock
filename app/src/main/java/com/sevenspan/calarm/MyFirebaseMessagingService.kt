@@ -52,7 +52,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     override fun onDestroy() {
-        serviceJob.cancel() // Cancel all coroutines when the service is destroyed
+        serviceJob.cancel()
         super.onDestroy()
     }
 }

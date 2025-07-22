@@ -46,13 +46,14 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -110,7 +111,10 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit) {
+fun HomeScreen(
+    viewModel: HomeViewModel = koinViewModel(),
+    onSignOut: () -> Unit,
+) {
     val context = LocalActivity.current as Activity
     val state by viewModel.state.collectAsStateWithLifecycle()
     val uiEvent = viewModel.uiEvent
@@ -121,7 +125,7 @@ fun HomeScreen(viewModel: HomeViewModel = koinViewModel(), onSignOut: () -> Unit
     val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-    // Notification Access State
+
     val isNotificationAccessGranted = remember(context) { isNotificationListenerEnabled(context) }
     var showNotificationAccessDialog by rememberSaveable(isNotificationAccessGranted) {
         mutableStateOf(false)
@@ -361,7 +365,6 @@ fun ManualPermissionGuidanceUI(
                 )
             }
             Row {
-                // Row for the two IconButtons
                 IconButton(onClick = onReEnableClick) {
                     Icon(
                         imageVector = Icons.Filled.Settings,
@@ -413,7 +416,7 @@ fun NotificationPolicyAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
                             "Could not open Notification Policy settings.",
                         )
                     }
-                    onDismiss() // Dismiss the dialog after attempting to open settings
+                    onDismiss()
                 }) {
                     Text("Open Settings")
                 }
@@ -423,7 +426,7 @@ fun NotificationPolicyAccessDialog(showDialog: Boolean, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun Body(homeSate: HomeState, modifier: Modifier = Modifier) {
+fun Body(homeSate: HomeState, modifier: Modifier = Modifier, onSyncClick: () -> Unit) {
     Box(modifier.fillMaxSize()) {
         when (homeSate.status) {
             HomeStatus.LOADING -> {
@@ -454,11 +457,26 @@ fun Body(homeSate: HomeState, modifier: Modifier = Modifier) {
             HomeStatus.INITIAL,
             HomeStatus.EMPTY,
                                -> {
-                Text(
-                    modifier = Modifier.align(Alignment.Center),
-                    text = "No data found! Try to sync again!",
-                    textAlign = TextAlign.Center,
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .align(Alignment.Center),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "No data found! Try to sync again!",
+                        textAlign = TextAlign.Center,
+                    )
+                    Button(
+                        onClick = {
+                            onSyncClick.invoke()
+                        },
+                        modifier = Modifier.padding(top = 16.dp)
+                    ) {
+                        Text("Sync Now")
+                    }
+                }
             }
         }
     }
@@ -777,6 +795,7 @@ private fun HomeComposable(
                 }
                 Body(
                     homeSate = homeSate,
+                    onSyncClick = onSyncClick,
                 )
             }
         }
@@ -790,7 +809,10 @@ private fun HomeComposable(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.onSurface)
+                LoadingIndicator(
+                    modifier = Modifier.align(alignment = Alignment.Center),
+                    color = Color.Gray,
+                )
             }
         }
     }
