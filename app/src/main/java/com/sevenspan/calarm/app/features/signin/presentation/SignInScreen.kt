@@ -358,7 +358,7 @@ fun Body(
                     modifier = Modifier.size(200.dp)
                 )
                 Text(
-                    text = "Your calendar’s smarter sidechick\nSync. Remind. Show Up. That’s Calarm",
+                    text = "Your calendar’s smartest sidechick\nSync. Remind. Show Up. That’s Calarm",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
