@@ -1,6 +1,7 @@
 [versions]
 agp = "8.10.1"
 arrowCore = "2.1.2"
+billing = "8.0.0"
 converterGson = "3.0.0"
 googleApiClientAndroid = "2.8.0"
 googleApiServicesCalendar = "v3-rev411-1.25.0"
@@ -41,6 +42,7 @@ material = "1.12.0"
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrowCore" }
+billing = { module = "com.android.billingclient:billing", version.ref = "billing" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "googleApiClientAndroid" }
 google-api-services-calendar = { module = "com.google.apis:google-api-services-calendar", version.ref = "googleApiServicesCalendar" }

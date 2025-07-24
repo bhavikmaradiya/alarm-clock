@@ -40,8 +40,8 @@ android {
         applicationId = "com.sevenspan.calarm"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val googleSignInClientId = localProperties.getProperty("GOOGLE_SIGN_IN_SERVER_CLIENT_ID")
@@ -152,4 +152,6 @@ dependencies {
     implementation(libs.logging.interceptor) // Or latest
     implementation("io.coil-kt.coil3:coil-compose:3.2.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.2.0")
+
+    implementation(libs.billing)
 }
