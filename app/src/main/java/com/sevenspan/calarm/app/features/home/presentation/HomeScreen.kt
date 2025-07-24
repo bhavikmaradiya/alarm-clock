@@ -96,6 +96,11 @@ import coil3.compose.AsyncImage
 import com.google.android.material.textview.MaterialTextView
 import com.meticha.triggerx.permission.PermissionState
 import com.meticha.triggerx.permission.rememberAppPermissionState
+import com.revenuecat.purchases.CustomerInfo
+import com.revenuecat.purchases.models.StoreTransaction
+import com.revenuecat.purchases.ui.revenuecatui.PaywallDialog
+import com.revenuecat.purchases.ui.revenuecatui.PaywallDialogOptions
+import com.revenuecat.purchases.ui.revenuecatui.PaywallListener
 import com.sevenspan.calarm.CalarmApp.Companion.isNetworkAvailable
 import com.sevenspan.calarm.app.core.model.AttendeeData
 import com.sevenspan.calarm.app.core.model.CalendarEvent
@@ -252,6 +257,24 @@ fun HomeScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+
+    PaywallDialog(
+        PaywallDialogOptions.Builder()
+            .setRequiredEntitlementIdentifier("pro")
+            .setListener(
+                object : PaywallListener {
+                    override fun onPurchaseCompleted(
+                        customerInfo: CustomerInfo,
+                        storeTransaction: StoreTransaction,
+                    ) {
+                    }
+
+                    override fun onRestoreCompleted(customerInfo: CustomerInfo) {}
+                }
+            )
+            .build()
+    )
+
 
 
     HomeComposable(

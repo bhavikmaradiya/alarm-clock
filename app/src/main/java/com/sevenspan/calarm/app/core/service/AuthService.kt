@@ -20,6 +20,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.database
+import com.revenuecat.purchases.Purchases
 import com.sevenspan.calarm.BuildConfig
 import com.sevenspan.calarm.app.core.data.source.local.AppSettingsDao
 import com.sevenspan.calarm.app.data.network.ApiClient
@@ -58,6 +59,7 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
         getCredentials(activity)
 
     override suspend fun signOut() {
+        Purchases.sharedInstance.logOut()
         updateFcmToken()
         removeRefreshToken()
         if (currentUser != null) {

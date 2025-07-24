@@ -154,4 +154,6 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.2.0")
 
     implementation(libs.billing)
+    implementation(libs.purchases)
+    implementation(libs.purchases.ui)
 }

@@ -7,6 +7,7 @@ import androidx.activity.result.ActivityResult
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.messaging.FirebaseMessaging
+import com.revenuecat.purchases.Purchases
 import com.sevenspan.calarm.app.core.data.source.local.AppSettingsDao
 import com.sevenspan.calarm.app.core.service.AuthService
 import com.sevenspan.calarm.app.features.signin.domain.repository.SignInRepository
@@ -39,14 +40,16 @@ class SignInRepositoryImpl(
     override suspend fun subscribeToCalendarWebhook(authCode: String?): Result<FirebaseUser?> {
         val sessionId = authService.subscribeToCalendarWebhook(authCode).getOrNull()
         if (!sessionId.isNullOrBlank()) {
+            val userId = authService.currentUser!!.uid
             val defaultSettings =
-                appSettingsDao.getSettings(userId = authService.currentUser!!.uid)
+                appSettingsDao.getSettings(userId = userId)
                     .first()
             appSettingsDao.upsertSettings(
                 settings = defaultSettings.copy(
                     sessionId = sessionId,
                 ),
             )
+            Purchases.sharedInstance.logIn(userId)
             val fcmToken = getFcmToken()
             if (!fcmToken.isNullOrBlank()) {
                 authService.updateFcmToken(fcmToken)

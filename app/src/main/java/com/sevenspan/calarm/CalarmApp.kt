@@ -8,6 +8,9 @@ import android.os.Bundle
 import android.util.Log
 import com.meticha.triggerx.dsl.TriggerX
 import com.meticha.triggerx.provider.TriggerXDataProvider
+import com.revenuecat.purchases.LogLevel
+import com.revenuecat.purchases.Purchases
+import com.revenuecat.purchases.PurchasesConfiguration
 import com.sevenspan.calarm.app.core.data.source.local.CalendarEventDao
 import com.sevenspan.calarm.app.core.di.appModule
 import com.sevenspan.calarm.app.core.model.CalendarEventBundleConverter.toBundle
@@ -66,6 +69,11 @@ class CalarmApp :
 
     override fun onCreate() {
         super.onCreate()
+
+        Purchases.logLevel = LogLevel.VERBOSE
+        Purchases.configure(
+            PurchasesConfiguration.Builder(this, getString(R.string.revenuecat_api_key)).build()
+        )
 
         startKoin {
             androidLogger()

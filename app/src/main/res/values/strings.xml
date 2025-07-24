@@ -2,4 +2,5 @@
     <string name="app_name">Calarm</string>
     <string name="default_web_client_id">WorkManager</string>
     <string name="privacy_policy">https://7span.com/apps/calarm/privacy-policy</string>
+    <string name="revenuecat_api_key">goog_ElhkRqjqVeheuTkPQsFdMClSBkk</string>
 </resources>
