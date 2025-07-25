@@ -5,7 +5,7 @@ import com.sevenspan.calarm.app.core.model.EventStatus
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class CalendarEvent(
+data class CalendarEventData(
     val id: Int = 0,
     val eventId: String,
     val eventName: String,
@@ -21,7 +21,7 @@ data class CalendarEvent(
     val attendees: List<AttendeeData>? = null,
 )
 
-fun CalendarEvent.toRoomModel(): com.sevenspan.calarm.app.core.model.CalendarEvent =
+fun CalendarEventData.toRoomModel(): com.sevenspan.calarm.app.core.model.CalendarEvent =
     com.sevenspan.calarm.app.core.model.CalendarEvent(
         eventId = this.eventId,
         eventName = this.eventName,
@@ -37,5 +37,5 @@ fun CalendarEvent.toRoomModel(): com.sevenspan.calarm.app.core.model.CalendarEve
         attendees = this.attendees,
     )
 
-fun List<CalendarEvent>.toRoomList(): List<com.sevenspan.calarm.app.core.model.CalendarEvent> =
+fun List<CalendarEventData>.toRoomList(): List<com.sevenspan.calarm.app.core.model.CalendarEvent> =
     this.map { it.toRoomModel() }

@@ -1,6 +1,6 @@
 package com.sevenspan.calarm.app.data.network
 
-import com.sevenspan.calarm.app.core.data.model.CalendarEvent
+import com.sevenspan.calarm.app.core.data.model.CalendarEventData
 import com.sevenspan.calarm.app.data.network.model.AuthCodeRequest
 import com.sevenspan.calarm.app.data.network.model.AuthStatus
 import com.sevenspan.calarm.app.data.network.model.SubscribeCalendarResponse
@@ -27,5 +27,5 @@ interface ApiService {
         @Header("X-User-Id") userId: String,
         @Query("timeMin") timeMin: String?,
         @Query("timeMax") timeMax: String?,
-    ): Response<List<CalendarEvent>?>
+    ): Response<List<CalendarEventData>?>
 }

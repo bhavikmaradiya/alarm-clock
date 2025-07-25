@@ -14,6 +14,7 @@ import com.sevenspan.calarm.app.core.service.CalendarService
 import com.sevenspan.calarm.app.core.service.FirebaseAnalyticsService
 import com.sevenspan.calarm.app.core.service.FirebaseAuthService
 import com.sevenspan.calarm.app.core.service.GoogleCalendarService
+import com.sevenspan.calarm.app.core.service.SubscriptionService
 import com.sevenspan.calarm.app.core.service.WorkScheduler
 import com.sevenspan.calarm.app.features.home.di.homeModule
 import com.sevenspan.calarm.app.features.signin.di.authModule
@@ -39,6 +40,8 @@ val appModule = module {
         )
     }
 
+    single<SubscriptionService> { SubscriptionService() }
+
     single<CalendarEventDao> { get<AppDatabase>().calendarEventDao() }
     single<AppSettingsDao> { get<AppDatabase>().appSettingsDao() }
 
@@ -61,6 +64,7 @@ val appModule = module {
             settingsRepository = get<SettingsRepository>(),
             alarmScheduler = get<TriggerXAlarmScheduler>(),
             authService = get<AuthService>(),
+            subscriptionService = get<SubscriptionService>(),
         )
     }
     viewModel {

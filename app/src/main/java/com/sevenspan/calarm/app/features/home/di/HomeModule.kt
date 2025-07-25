@@ -3,9 +3,9 @@ package com.sevenspan.calarm.app.features.home.di
 import com.meticha.triggerx.TriggerXAlarmScheduler
 import com.sevenspan.calarm.app.core.data.repository.SettingsRepository
 import com.sevenspan.calarm.app.core.data.source.network.CalendarEventsSyncWorker
-import com.sevenspan.calarm.app.core.service.AnalyticsService
 import com.sevenspan.calarm.app.core.service.AuthService
 import com.sevenspan.calarm.app.core.service.CalendarService
+import com.sevenspan.calarm.app.core.service.CalendarSyncWorker
 import com.sevenspan.calarm.app.core.service.WorkScheduler
 import com.sevenspan.calarm.app.features.home.data.repository.HomeRepository
 import com.sevenspan.calarm.app.features.home.data.repository.HomeRepositoryImpl
@@ -24,7 +24,7 @@ val homeModule = module {
         )
     }
 
-    worker(named<CalendarEventsSyncWorker>()) {
+    /*worker(named<CalendarEventsSyncWorker>()) {
         CalendarEventsSyncWorker(
             appContext = androidContext(),
             workerParams = get(),
@@ -33,6 +33,14 @@ val homeModule = module {
             calendarService = get<CalendarService>(),
             analytics = get<AnalyticsService>(),
             authService = get<AuthService>(),
+        )
+    }*/
+
+    worker(named<CalendarEventsSyncWorker>()) {
+        CalendarSyncWorker(
+            appContext = androidContext(),
+            workerParams = get(),
+            calendarService = get<CalendarService>(),
         )
     }
 

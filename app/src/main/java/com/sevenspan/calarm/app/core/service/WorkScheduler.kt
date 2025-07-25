@@ -12,16 +12,19 @@ import androidx.work.WorkManager
 import com.sevenspan.calarm.app.core.data.source.network.CalendarEventsSyncWorker
 import java.util.concurrent.TimeUnit
 
-class WorkScheduler(private val context: Context, private val authService: AuthService) {
+class WorkScheduler(
+    private val context: Context,
+    private val authService: AuthService,
+) {
 
     companion object {
         private const val TAG = "WorkScheduler"
     }
 
-    fun scheduleWorker() {
+    suspend fun scheduleWorker() {
         val workManager = WorkManager.Companion.getInstance(context)
-        workManager.cancelUniqueWork(CalendarEventsSyncWorker.Companion.WORKER_NAME)
-        if (authService.isUserSignedIn) {
+        workManager.cancelUniqueWork(CalendarSyncWorker.Companion.WORK_NAME)
+        if (authService.isUserSignedIn()) {
             val hourlyWorkRequest =
                 PeriodicWorkRequestBuilder<CalendarEventsSyncWorker>(
                     CalendarEventsSyncWorker.Companion.SYNC_INTERVAL_MINUTES.toLong(),
@@ -34,7 +37,7 @@ class WorkScheduler(private val context: Context, private val authService: AuthS
                     .build()
 
             workManager.enqueueUniquePeriodicWork(
-                CalendarEventsSyncWorker.Companion.WORKER_NAME,
+                CalendarSyncWorker.Companion.WORK_NAME,
                 ExistingPeriodicWorkPolicy.REPLACE,
                 hourlyWorkRequest,
             )
@@ -46,7 +49,7 @@ class WorkScheduler(private val context: Context, private val authService: AuthS
 
     suspend fun enqueueCalendarSync() {
         if (authService.isUserSignedIn()) {
-            val workRequest = OneTimeWorkRequestBuilder<CalendarEventsSyncWorker>()
+            val workRequest = OneTimeWorkRequestBuilder<CalendarSyncWorker>()
                 .setConstraints(
                     Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
                         .build(),
@@ -55,7 +58,7 @@ class WorkScheduler(private val context: Context, private val authService: AuthS
 
             WorkManager.getInstance(context)
                 .enqueueUniqueWork(
-                    CalendarEventsSyncWorker.Companion.WORKER_NAME,
+                    CalendarSyncWorker.Companion.WORK_NAME,
                     ExistingWorkPolicy.REPLACE,
                     workRequest,
                 )

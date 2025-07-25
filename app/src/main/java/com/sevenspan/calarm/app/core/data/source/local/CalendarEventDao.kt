@@ -64,8 +64,8 @@ interface CalendarEventDao {
 
     @Query(
         "SELECT * FROM calendar_events " +
-            "WHERE startTimeMillis > :currentTime " +
-            "ORDER BY startTimeMillis ASC",
+        "WHERE startTimeMillis > :currentTime " +
+        "ORDER BY startTimeMillis ASC",
     )
     fun getUpcomingEvents(currentTime: Long = System.currentTimeMillis()): Flow<List<CalendarEvent>>
 
@@ -87,4 +87,11 @@ interface CalendarEventDao {
 
     @Query("DELETE FROM calendar_events WHERE endTimeMillis < :thresholdTime")
     suspend fun clearPastEvents(thresholdTime: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM calendar_events WHERE eventStatus = :status AND startTimeMillis >= :startOfDayMillis AND startTimeMillis < :endOfDayMillis")
+    suspend fun getEventsByStatusAndDateRange(
+        status: EventStatus,
+        startOfDayMillis: Long,
+        endOfDayMillis: Long,
+    ): List<CalendarEvent>
 }
