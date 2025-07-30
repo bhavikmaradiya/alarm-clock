@@ -1,6 +1,7 @@
 package com.sevenspan.calarm.app.core.service
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -16,14 +17,27 @@ class WorkScheduler(
     private val context: Context,
     private val authService: AuthService,
 ) {
+    private val workManager = WorkManager.getInstance(context)
 
     companion object {
         private const val TAG = "WorkScheduler"
     }
 
+    fun isXiaomiDevice(): Boolean = Build.MANUFACTURER.equals(
+        "Xiaomi",
+        ignoreCase = true
+    )
+
+    fun cancelWorker() {
+        workManager
+            .cancelUniqueWork(CalendarEventsSyncWorker.Companion.RECURRING_WORKER_NAME)
+    }
+
     suspend fun scheduleWorker() {
-        val workManager = WorkManager.Companion.getInstance(context)
-        workManager.cancelUniqueWork(CalendarSyncWorker.Companion.WORK_NAME)
+        if (!isXiaomiDevice()) {
+            return
+        }
+        cancelWorker()
         if (authService.isUserSignedIn()) {
             val hourlyWorkRequest =
                 PeriodicWorkRequestBuilder<CalendarEventsSyncWorker>(
@@ -37,7 +51,7 @@ class WorkScheduler(
                     .build()
 
             workManager.enqueueUniquePeriodicWork(
-                CalendarSyncWorker.Companion.WORK_NAME,
+                CalendarEventsSyncWorker.Companion.RECURRING_WORKER_NAME,
                 ExistingPeriodicWorkPolicy.REPLACE,
                 hourlyWorkRequest,
             )
@@ -49,16 +63,16 @@ class WorkScheduler(
 
     suspend fun enqueueCalendarSync() {
         if (authService.isUserSignedIn()) {
-            val workRequest = OneTimeWorkRequestBuilder<CalendarSyncWorker>()
+            val workRequest = OneTimeWorkRequestBuilder<CalendarEventsSyncWorker>()
                 .setConstraints(
                     Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
                         .build(),
                 )
                 .build()
 
-            WorkManager.getInstance(context)
+            workManager
                 .enqueueUniqueWork(
-                    CalendarSyncWorker.Companion.WORK_NAME,
+                    CalendarEventsSyncWorker.Companion.WORKER_NAME,
                     ExistingWorkPolicy.REPLACE,
                     workRequest,
                 )

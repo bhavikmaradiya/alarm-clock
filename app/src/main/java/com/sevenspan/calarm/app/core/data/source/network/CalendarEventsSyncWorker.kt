@@ -28,6 +28,8 @@ class CalendarEventsSyncWorker(
 
     companion object {
         const val WORKER_NAME = "com.example.workmanager.app.worker.CalendarSyncWorker"
+        const val RECURRING_WORKER_NAME =
+            "com.example.workmanager.app.worker.recurring.CalendarSyncWorker"
         private const val TAG = "CalendarSyncWorker"
 
         const val SYNC_INTERVAL_MINUTES = 15
@@ -37,6 +39,10 @@ class CalendarEventsSyncWorker(
     override suspend fun doWork(): Result {
         if (!isNetworkAvailable(appContext)) {
             Log.e(TAG, "CalendarSyncWorker: No network available.")
+            return Result.failure()
+        }
+        if (!authService.isUserSignedIn()) {
+            Log.e(TAG, "CalendarSyncWorker: User is not signed in.")
             return Result.failure()
         }
         analytics.logEvent(TAG) {
@@ -72,10 +78,11 @@ class CalendarEventsSyncWorker(
                 if (calendarEvents.isNotEmpty()) {
                     val pairOfEvents = calendarEvents.mapNotNull { event ->
                         val reminderTimeMillis =
-                            event.startTimeMillis -
-                                (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
+                            event.startTimeMillis - (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
                         if (reminderTimeMillis > System.currentTimeMillis()) {
                             Pair(event.id, reminderTimeMillis)
+                        } else if (event.startTimeMillis > System.currentTimeMillis()) {
+                            Pair(event.id, event.startTimeMillis)
                         } else {
                             null
                         }

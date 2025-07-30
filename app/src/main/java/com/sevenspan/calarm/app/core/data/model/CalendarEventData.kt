@@ -38,4 +38,4 @@ fun CalendarEventData.toRoomModel(): com.sevenspan.calarm.app.core.model.Calenda
     )
 
 fun List<CalendarEventData>.toRoomList(): List<com.sevenspan.calarm.app.core.model.CalendarEvent> =
-    this.map { it.toRoomModel() }
+    map { it.toRoomModel() }

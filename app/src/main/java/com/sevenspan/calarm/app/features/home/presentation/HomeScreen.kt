@@ -96,11 +96,6 @@ import coil3.compose.AsyncImage
 import com.google.android.material.textview.MaterialTextView
 import com.meticha.triggerx.permission.PermissionState
 import com.meticha.triggerx.permission.rememberAppPermissionState
-import com.revenuecat.purchases.CustomerInfo
-import com.revenuecat.purchases.models.StoreTransaction
-import com.revenuecat.purchases.ui.revenuecatui.PaywallDialog
-import com.revenuecat.purchases.ui.revenuecatui.PaywallDialogOptions
-import com.revenuecat.purchases.ui.revenuecatui.PaywallListener
 import com.sevenspan.calarm.CalarmApp.Companion.isNetworkAvailable
 import com.sevenspan.calarm.app.core.model.AttendeeData
 import com.sevenspan.calarm.app.core.model.CalendarEvent
@@ -258,7 +253,7 @@ fun HomeScreen(
         }
     }
 
-    PaywallDialog(
+    /*PaywallDialog(
         PaywallDialogOptions.Builder()
             .setRequiredEntitlementIdentifier("pro")
             .setListener(
@@ -273,7 +268,7 @@ fun HomeScreen(
                 }
             )
             .build()
-    )
+    )*/
 
 
 
@@ -818,7 +813,23 @@ private fun HomeComposable(
                 }
                 Body(
                     homeSate = homeSate,
-                    onSyncClick = onSyncClick,
+                    onSyncClick = {
+                        scope.launch {
+                            if (arePermissionsGranted &&
+                                isNetworkAvailable(
+                                    context,
+                                )
+                            ) {
+                                onSyncClick.invoke()
+                            } else if (!arePermissionsGranted) {
+                                onUnifiedReEnableClick.invoke()
+                            } else {
+                                snackBarHostState.showSnackbar(
+                                    "Please check your internet connection",
+                                )
+                            }
+                        }
+                    },
                 )
             }
         }

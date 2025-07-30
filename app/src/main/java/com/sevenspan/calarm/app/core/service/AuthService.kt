@@ -32,8 +32,6 @@ import kotlinx.coroutines.tasks.await
 interface AuthService {
     val currentUser: FirebaseUser?
 
-    val isUserSignedIn: Boolean
-
     suspend fun isUserSignedIn(): Boolean
 
     suspend fun signInWithGoogle(activity: Activity): Result<FirebaseUser>
@@ -52,8 +50,6 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
     private val auth: FirebaseAuth = Firebase.auth
     private val database: FirebaseDatabase = Firebase.database
     override val currentUser: FirebaseUser? get() = auth.currentUser
-    override val isUserSignedIn: Boolean
-        get() = currentUser != null
 
     override suspend fun signInWithGoogle(activity: Activity): Result<FirebaseUser> =
         getCredentials(activity)
@@ -61,15 +57,15 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
     override suspend fun signOut() {
         Purchases.sharedInstance.logOut()
         updateFcmToken()
-        removeRefreshToken()
+        removeSessionId()
         if (currentUser != null) {
             auth.signOut()
         }
     }
 
     override suspend fun isUserSignedIn(): Boolean {
-        if (isUserSignedIn) {
-            if (!isRefreshTokenAvailable()) {
+        if (currentUser != null) {
+            if (!isValidSession()) {
                 signOut()
             } else {
                 return true
@@ -78,13 +74,13 @@ class FirebaseAuthService(private val settingsService: AppSettingsDao) : AuthSer
         return false
     }
 
-    private suspend fun removeRefreshToken() {
+    private suspend fun removeSessionId() {
         val user = currentUser ?: return
         val settings = settingsService.getSettings(user.uid).first()
         settingsService.upsertSettings(settings.copy(sessionId = null))
     }
 
-    private suspend fun isRefreshTokenAvailable(): Boolean {
+    private suspend fun isValidSession(): Boolean {
         val user = currentUser ?: return false
         val settings = settingsService.getSettings(user.uid).first()
         val localRefreshToken = settings.sessionId

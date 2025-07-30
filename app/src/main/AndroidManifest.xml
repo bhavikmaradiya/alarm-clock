@@ -13,11 +13,6 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="com.android.vending.BILLING" />
 
-
-    <!--<permission
-        android:name="com.bhavikm.alarmapp.ALARM_PERMISSION"
-        android:protectionLevel="normal" />-->
-
     <application
         android:name=".CalarmApp"
         android:allowBackup="true"
@@ -46,12 +41,14 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
 
-            <!--<meta-data
+            <!--
+            <meta-data
                 android:name="android.service.notification.default_filter_types"
                 android:value="conversations|alerting" />
             <meta-data
                 android:name="android.service.notification.disabled_filter_types"
-                android:value="ongoing|silent" />-->
+                android:value="ongoing|silent" />
+            -->
         </service>
 
         <meta-data
@@ -101,29 +98,6 @@
             android:taskAffinity=""
             android:theme="@style/Theme.WorkManager"
             android:turnScreenOn="true" />
-
-        <!--<service
-            android:name=".AlarmService"
-            android:exported="false"
-            android:foregroundServiceType="shortService" />-->
-
-        <!--<receiver
-            android:name=".AlarmReceiver"
-            android:exported="true"
-            android:permission="com.example.alarmapp.ALARM_PERMISSION" />-->
-
-        <!--<receiver
-            android:name=".app.receiver.CalendarSyncAlarmReceiver"
-            android:enabled="true"
-            android:exported="true"> &lt;!&ndash; Needs to be exported true for BOOT_COMPLETED on some devices/API levels &ndash;&gt;
-            <intent-filter>
-                <action android:name="com.example.workmanager.ACTION_SYNC_CALENDAR_ALARM" />
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                &lt;!&ndash; This allows the BOOT_COMPLETED to be received even if the app is not launched by the user &ndash;&gt;
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-            </intent-filter>
-        </receiver>-->
-
     </application>
 
 </manifest>

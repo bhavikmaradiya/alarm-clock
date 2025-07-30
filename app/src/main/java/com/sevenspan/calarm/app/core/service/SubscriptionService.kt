@@ -1,8 +1,5 @@
 package com.sevenspan.calarm.app.core.service
 
-import com.revenuecat.purchases.CacheFetchPolicy
-import com.revenuecat.purchases.Purchases
-import com.revenuecat.purchases.getCustomerInfoWith
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.Calendar
 
@@ -26,7 +23,8 @@ class SubscriptionService {
     }
 
     suspend fun isPremiumUser(): Boolean = suspendCancellableCoroutine { continuation ->
-        Purchases.sharedInstance.getCustomerInfoWith(
+        continuation.resume(true) { cause, _, _ -> null }
+        /*Purchases.sharedInstance.getCustomerInfoWith(
             fetchPolicy = CacheFetchPolicy.FETCH_CURRENT,
             onError = { error ->
                 if (continuation.isActive) {
@@ -39,6 +37,6 @@ class SubscriptionService {
                     continuation.resume(isPro) { cause, _, _ -> null }
                 }
             }
-        )
+        )*/
     }
 }

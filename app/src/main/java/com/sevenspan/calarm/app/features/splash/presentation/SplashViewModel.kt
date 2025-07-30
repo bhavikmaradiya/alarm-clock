@@ -3,12 +3,16 @@ package com.sevenspan.calarm.app.features.splash.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sevenspan.calarm.app.core.service.AuthService
+import com.sevenspan.calarm.app.core.service.WorkScheduler
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
-class SplashViewModel(private val authService: AuthService) : ViewModel() {
+class SplashViewModel(
+    private val authService: AuthService,
+    private val workScheduler: WorkScheduler,
+) : ViewModel() {
     private val _uiEvent = Channel<SplashEvent>()
     val uiEvent: Flow<SplashEvent> = _uiEvent.receiveAsFlow()
 
@@ -18,6 +22,7 @@ class SplashViewModel(private val authService: AuthService) : ViewModel() {
             if (isLoggedIn) {
                 _uiEvent.send(SplashEvent.NavigateToHome)
             } else {
+                workScheduler.cancelWorker()
                 _uiEvent.send(SplashEvent.NavigateToSignIn)
             }
             /*val baseUrl = authService.fetchBaseUrlFromFirebase()

@@ -37,6 +37,9 @@ class HomeViewModel(
     val uiEvent = _uiEvent.receiveAsFlow()
 
     init {
+        viewModelScope.launch {
+            workScheduler.scheduleWorker()
+        }
         notifyUserInfo()
     }
 
@@ -90,10 +93,11 @@ class HomeViewModel(
                         }
                         val pairOfEvents = calendarEvents.mapNotNull { event ->
                             val reminderTimeMillis =
-                                event.startTimeMillis -
-                                (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
+                                event.startTimeMillis - (appSettings.defaultDelayBeforeTriggerMinutes * 60 * 1000)
                             if (reminderTimeMillis > System.currentTimeMillis()) {
                                 Pair(event.id, reminderTimeMillis)
+                            } else if (event.startTimeMillis > System.currentTimeMillis()) {
+                                Pair(event.id, event.startTimeMillis)
                             } else {
                                 null
                             }
@@ -125,6 +129,7 @@ class HomeViewModel(
                             getCalendar(context)
                         }
                         .onFailure {
+                            workScheduler.cancelWorker()
                             _uiEvent.send(HomeUIEvent.OnSignInFailure)
                         }
                 }
@@ -146,7 +151,9 @@ class HomeViewModel(
                 .onSuccess {
                     notifyUserInfo()
                     getCalendar(context)
-                }.onFailure {
+                }
+                .onFailure {
+                    workScheduler.cancelWorker()
                     _uiEvent.send(HomeUIEvent.OnSignInFailure)
                 }
         }
