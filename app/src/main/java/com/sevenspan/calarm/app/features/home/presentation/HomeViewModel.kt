@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.meticha.triggerx.TriggerXAlarmScheduler
 import com.sevenspan.calarm.app.core.data.repository.SettingsRepository
 import com.sevenspan.calarm.app.core.model.CalendarEvent
+import com.sevenspan.calarm.app.core.service.SubscriptionService
 import com.sevenspan.calarm.app.core.service.WorkScheduler
 import com.sevenspan.calarm.app.features.home.data.repository.HomeRepository
 import com.sevenspan.calarm.app.features.signin.domain.repository.SignInRepository
@@ -29,6 +30,7 @@ class HomeViewModel(
     private val signInRepository: SignInRepository,
     private val alarmScheduler: TriggerXAlarmScheduler,
     private val workScheduler: WorkScheduler,
+    private val subscriptionService: SubscriptionService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeState())
 
@@ -39,6 +41,10 @@ class HomeViewModel(
     init {
         viewModelScope.launch {
             workScheduler.scheduleWorker()
+
+            if (!subscriptionService.isPremiumUser()) {
+                _uiEvent.send(HomeUIEvent.SubscriptionEndedEvent)
+            }
         }
         notifyUserInfo()
     }
@@ -71,6 +77,12 @@ class HomeViewModel(
                         "Calendar",
                         error.toString(),
                     )
+                    _state.update {
+                        it.copy(
+                            status = HomeStatus.ERROR,
+                            error = error.message,
+                        )
+                    }
                 },
                 onSuccess = { events ->
                     val appSettings = settingsRepository.getSettings().first()
@@ -159,6 +171,8 @@ class HomeViewModel(
         }
     }
 
+    suspend fun isSubscriptionActive(): Boolean = subscriptionService.isPremiumUser()
+
     override fun onCleared() {
         super.onCleared()
         _uiEvent.close()
@@ -171,4 +185,5 @@ sealed interface HomeUIEvent {
     data object OnSignInFailure : HomeUIEvent
     data class OnSignInIntentGenerated(val intent: PendingIntent?) : HomeUIEvent
     data class LocalCalendarFetchedEvent(val events: List<CalendarEvent>) : HomeUIEvent
+    data object SubscriptionEndedEvent : HomeUIEvent
 }

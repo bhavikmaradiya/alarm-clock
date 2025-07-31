@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
-import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -40,6 +39,9 @@ class GoogleCalendarService(
 
     override suspend fun getCalendarEvents(): Result<List<CalendarEvent>> =
         withContext(Dispatchers.IO) {
+            if (!subscriptionService.isPremiumUser()) {
+                return@withContext Result.failure(Exception("Please upgrade to pro"))
+            }
             try {
                 val settings =
                     settingsRepository.getSettings().first()
@@ -51,14 +53,7 @@ class GoogleCalendarService(
 
                 val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
                 val now = OffsetDateTime.now(ZoneOffset.UTC)
-
-                val timeMax = if (subscriptionService.isPremiumUser()) {
-                    now.plusHours((24 * settings.defaultDaysToSyncFromNow).toLong())
-                } else {
-                    val endOfDayMillis = subscriptionService.getTodayMillisRange().second
-                    OffsetDateTime.ofInstant(Instant.ofEpochMilli(endOfDayMillis), ZoneOffset.UTC)
-                }
-
+                val timeMax = now.plusHours((24 * settings.defaultDaysToSyncFromNow).toLong())
                 val response = ApiClient.apiService
                     .getCalendarEvents(
                         timeMin = now.format(formatter),
@@ -110,7 +105,7 @@ class GoogleCalendarService(
                 for (eventMappedByRepo in this) {
                     val existingEventInDb =
                         calendarEventDao.getEventById(eventMappedByRepo.eventId)
-                    var finalStatus = EventStatus.COMPLETED // Default status
+                    var finalStatus = EventStatus.COMPLETED
 
                     val isGoogleEventCancelled =
                         eventMappedByRepo.googleCalendarApiStatus?.lowercase() == "cancelled"
@@ -134,11 +129,11 @@ class GoogleCalendarService(
                                 )
                             }
                         }
-                    } else { // Event is not cancelled by Google
+                    } else {
                         if (existingEventInDb == null) { // Brand new event
                             finalStatus =
                                 if (isEventUpcoming) EventStatus.PENDING else EventStatus.COMPLETED
-                        } else { // Existing event in DB
+                        } else {
                             if (didEventChangeForAlarming(
                                     existingEventInDb,
                                     eventMappedByRepo

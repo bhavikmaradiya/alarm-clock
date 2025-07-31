@@ -9,6 +9,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSavedStateNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigation3.ui.rememberSceneSetupNavEntryDecorator
+import com.sevenspan.calarm.app.features.faq.presentation.FaqScreen
 import com.sevenspan.calarm.app.features.home.presentation.HomeScreen
 import com.sevenspan.calarm.app.features.settings.presentation.SettingsScreen
 import com.sevenspan.calarm.app.features.signin.presentation.SignInScreen
@@ -27,6 +28,9 @@ sealed class Routes : NavKey {
 
     @Serializable
     data object SettingsRoute : Routes()
+
+    @Serializable
+    data object FaqRoute : Routes()
 }
 
 @Composable
@@ -58,12 +62,20 @@ fun Navigation() {
                 }
             }
             entry<Routes.HomeRoute> {
-                HomeScreen {
-                    backStack.replaceAll { Routes.SignInRoute }
-                }
+                HomeScreen(
+                    onSignOut = { backStack.replaceAll { Routes.SignInRoute } },
+                    onNavigateToFaq = {
+                        backStack.add(Routes.FaqRoute)
+                    }
+                )
             }
             entry<Routes.SettingsRoute> {
                 SettingsScreen()
+            }
+            entry<Routes.FaqRoute> {
+                FaqScreen {
+                    backStack.remove(Routes.FaqRoute)
+                }
             }
         },
     )

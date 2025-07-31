@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit
 class WorkScheduler(
     private val context: Context,
     private val authService: AuthService,
+    private val subscriptionService: SubscriptionService,
 ) {
     private val workManager = WorkManager.getInstance(context)
 
@@ -38,7 +39,7 @@ class WorkScheduler(
             return
         }
         cancelWorker()
-        if (authService.isUserSignedIn()) {
+        if (authService.isUserSignedIn() && subscriptionService.isPremiumUser()) {
             val hourlyWorkRequest =
                 PeriodicWorkRequestBuilder<CalendarEventsSyncWorker>(
                     CalendarEventsSyncWorker.Companion.SYNC_INTERVAL_MINUTES.toLong(),
@@ -62,7 +63,7 @@ class WorkScheduler(
     }
 
     suspend fun enqueueCalendarSync() {
-        if (authService.isUserSignedIn()) {
+        if (authService.isUserSignedIn() && subscriptionService.isPremiumUser()) {
             val workRequest = OneTimeWorkRequestBuilder<CalendarEventsSyncWorker>()
                 .setConstraints(
                     Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)

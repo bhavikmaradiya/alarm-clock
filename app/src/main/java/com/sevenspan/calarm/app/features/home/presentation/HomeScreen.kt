@@ -15,6 +15,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -73,11 +78,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -96,9 +105,16 @@ import coil3.compose.AsyncImage
 import com.google.android.material.textview.MaterialTextView
 import com.meticha.triggerx.permission.PermissionState
 import com.meticha.triggerx.permission.rememberAppPermissionState
+import com.revenuecat.purchases.CustomerInfo
+import com.revenuecat.purchases.models.StoreTransaction
+import com.revenuecat.purchases.ui.revenuecatui.PaywallDialog
+import com.revenuecat.purchases.ui.revenuecatui.PaywallDialogOptions
+import com.revenuecat.purchases.ui.revenuecatui.PaywallListener
 import com.sevenspan.calarm.CalarmApp.Companion.isNetworkAvailable
+import com.sevenspan.calarm.R
 import com.sevenspan.calarm.app.core.model.AttendeeData
 import com.sevenspan.calarm.app.core.model.CalendarEvent
+import com.sevenspan.calarm.app.core.service.SubscriptionService
 import com.sevenspan.calarm.app.features.settings.presentation.NotificationAccessDialog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -114,6 +130,7 @@ import kotlin.math.abs
 fun HomeScreen(
     viewModel: HomeViewModel = koinViewModel(),
     onSignOut: () -> Unit,
+    onNavigateToFaq: () -> Unit,
 ) {
     val context = LocalActivity.current as Activity
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -140,6 +157,8 @@ fun HomeScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     var arePermissionsGranted by remember { mutableStateOf(false) }
     var shouldAskForPermissions by remember { mutableStateOf(false) }
+    var isSubscriptionActive by remember { mutableStateOf(false) }
+    var shouldShowSubscriptionDialog by remember { mutableStateOf(false) }
 
     val googleCalendarScopeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
@@ -164,6 +183,11 @@ fun HomeScreen(
                 is HomeUIEvent.OnSignInFailure         -> {
                     snackBarHostState.showSnackbar("Sign in failed. Please try again.")
                     onSignOut.invoke()
+                }
+
+                is HomeUIEvent.SubscriptionEndedEvent  -> {
+                    isSubscriptionActive = false
+                    shouldShowSubscriptionDialog = true
                 }
 
                 else                                   -> {}
@@ -216,6 +240,7 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 coroutineScope.launch {
+                    isSubscriptionActive = viewModel.isSubscriptionActive()
                     val shouldRefresh = !arePermissionsGranted
                     arePermissionsGranted = arePermissionsGranted(
                         context = context,
@@ -253,22 +278,35 @@ fun HomeScreen(
         }
     }
 
-    /*PaywallDialog(
-        PaywallDialogOptions.Builder()
-            .setRequiredEntitlementIdentifier("pro")
-            .setListener(
-                object : PaywallListener {
-                    override fun onPurchaseCompleted(
-                        customerInfo: CustomerInfo,
-                        storeTransaction: StoreTransaction,
-                    ) {
-                    }
-
-                    override fun onRestoreCompleted(customerInfo: CustomerInfo) {}
+    if (shouldShowSubscriptionDialog && !isSubscriptionActive) {
+        PaywallDialog(
+            PaywallDialogOptions.Builder()
+                .setRequiredEntitlementIdentifier(SubscriptionService.PRO_ENTITLEMENT_ID)
+                .setDismissRequest {
+                    shouldShowSubscriptionDialog = false
                 }
-            )
-            .build()
-    )*/
+                .setListener(
+                    object : PaywallListener {
+                        override fun onPurchaseCompleted(
+                            customerInfo: CustomerInfo,
+                            storeTransaction: StoreTransaction,
+                        ) {
+                            shouldShowSubscriptionDialog = false
+                        }
+
+                        override fun onPurchaseCancelled() {
+                            shouldShowSubscriptionDialog = false
+                            super.onPurchaseCancelled()
+                        }
+
+                        override fun onRestoreCompleted(customerInfo: CustomerInfo) {
+                            shouldShowSubscriptionDialog = false
+                        }
+                    }
+                )
+                .build(),
+        )
+    }
 
 
 
@@ -278,13 +316,12 @@ fun HomeScreen(
         snackBarHostState = snackBarHostState,
         arePermissionsGranted = arePermissionsGranted,
         scope = coroutineScope,
+        isSubscriptionActive = isSubscriptionActive,
         onUnifiedReEnableClick = {
             shouldAskForPermissions = true
         },
         onUnifiedShowManualStepsClick = {
-            coroutineScope.launch {
-                snackBarHostState.showSnackbar("FAQs are coming soon! Stay tuned!")
-            }
+            onNavigateToFaq.invoke()
         },
         onSyncClick = {
             viewModel.getCalendar(context)
@@ -292,7 +329,79 @@ fun HomeScreen(
         onSwitchAccountClick = {
             viewModel.switchAccount(context)
         },
+        onGoPremiumClick = {
+            shouldShowSubscriptionDialog = true
+        }
     )
+}
+
+@Composable
+fun Modifier.infiniteWobble(
+    enabled: Boolean = true,
+    rotationAngle: Float = 10f,
+    nudgeDistance: Dp = 5.dp,
+    animationCycleDurationMillis: Int = 600,
+    pauseDurationMillis: Int = 500,
+): Modifier = composed {
+    val currentNudgeDistancePx = with(LocalDensity.current) { nudgeDistance.toPx() }
+
+    val rotationAnimatable = remember { Animatable(0f) }
+    val translationYAnimatable =
+        remember { Animatable(0f) } // Changed back to translationYAnimatable
+
+    val totalCycleDurationMillis = animationCycleDurationMillis + pauseDurationMillis
+
+    LaunchedEffect(enabled) {
+        if (enabled) {
+            launch {
+                rotationAnimatable.animateTo(
+                    targetValue = 0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = keyframes {
+                            durationMillis = totalCycleDurationMillis
+                            // Active Rotation
+                            0f at 0
+                            rotationAngle at (animationCycleDurationMillis / 4)
+                            0f at (animationCycleDurationMillis / 2)
+                            -rotationAngle at (animationCycleDurationMillis * 3 / 4)
+                            0f at animationCycleDurationMillis
+                            // Pause
+                            0f at totalCycleDurationMillis
+                        },
+                        repeatMode = RepeatMode.Restart
+                    )
+                )
+            }
+            launch {
+                translationYAnimatable.animateTo( // Changed back to translationYAnimatable
+                    targetValue = 0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = keyframes {
+                            durationMillis = totalCycleDurationMillis
+                            // Active Nudge (coordinated with rotation)
+                            // Nudges UP when rotating, then DOWN
+                            0f at 0
+                            -currentNudgeDistancePx at (animationCycleDurationMillis / 4) // Nudge UP
+                            0f at (animationCycleDurationMillis / 2)
+                            currentNudgeDistancePx at (animationCycleDurationMillis * 3 / 4) // Nudge DOWN
+                            0f at animationCycleDurationMillis
+                            // Pause
+                            0f at totalCycleDurationMillis
+                        },
+                        repeatMode = RepeatMode.Restart
+                    )
+                )
+            }
+        } else {
+            rotationAnimatable.snapTo(0f)
+            translationYAnimatable.snapTo(0f) // Changed back to translationYAnimatable
+        }
+    }
+
+    this.graphicsLayer {
+        rotationZ = rotationAnimatable.value
+        translationY = translationYAnimatable.value // Changed back to translationY
+    }
 }
 
 suspend fun askForRemainingPermissions(
@@ -374,8 +483,7 @@ fun ManualPermissionGuidanceUI(
                     text = "Action Needed",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.secondary,
-
-                    )
+                )
                 Text(
                     text = "App needs permissions to work properly.",
                     style = MaterialTheme.typography.bodySmall,
@@ -725,6 +833,7 @@ private fun isYesterday(targetCalendar: Calendar, currentCalendar: Calendar): Bo
 private fun HomeComposable(
     context: Context,
     arePermissionsGranted: Boolean,
+    isSubscriptionActive: Boolean,
     onUnifiedReEnableClick: () -> Unit,
     onUnifiedShowManualStepsClick: () -> Unit,
     homeSate: HomeState = HomeState(),
@@ -732,6 +841,7 @@ private fun HomeComposable(
     onSyncClick: () -> Unit = {},
     onSwitchAccountClick: () -> Unit = {},
     scope: CoroutineScope = rememberCoroutineScope(),
+    onGoPremiumClick: () -> Unit = {},
 ) {
     val isLoading = homeSate.status == HomeStatus.LOADING
 
@@ -747,6 +857,28 @@ private fun HomeComposable(
                     ),
                     modifier = Modifier.padding(start = 12.dp, end = 12.dp),
                     actions = {
+                        if (!isSubscriptionActive)
+                            FilledTonalIconButton(
+                                content = {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_crown),
+                                        contentDescription = "Crown Icon",
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                    )
+                                },
+                                onClick = onGoPremiumClick,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors()
+                                    .copy(
+                                        containerColor = MaterialTheme.colorScheme.tertiary.copy(
+                                            alpha = 0.2f,
+                                        ),
+                                    ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .padding(end = 10.dp)
+                                    .infiniteWobble(),
+                            )
                         FilledTonalIconButton(
                             content = {
                                 Icon(

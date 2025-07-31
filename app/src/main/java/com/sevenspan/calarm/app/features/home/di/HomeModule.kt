@@ -26,6 +26,7 @@ val homeModule = module {
             alarmScheduler = get<TriggerXAlarmScheduler>(),
             workScheduler = get<WorkScheduler>(),
             signInRepository = get(),
+            subscriptionService = get()
         )
     }
 }

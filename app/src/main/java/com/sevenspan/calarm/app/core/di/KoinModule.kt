@@ -43,10 +43,6 @@ val appModule = module {
         )
     }
 
-    single<SubscriptionService> {
-        SubscriptionService()
-    }
-
     single<CalendarEventDao> {
         get<AppDatabase>().calendarEventDao()
     }
@@ -59,10 +55,16 @@ val appModule = module {
             settingsService = get(),
         )
     }
+
+    single<SubscriptionService> {
+        SubscriptionService(authService = get<AuthService>())
+    }
+
     single<WorkScheduler> {
         WorkScheduler(
             context = androidContext(),
-            authService = get<AuthService>()
+            authService = get<AuthService>(),
+            subscriptionService = get<SubscriptionService>(),
         )
     }
     single<TriggerXAlarmScheduler> {
